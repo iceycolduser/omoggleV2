@@ -334,7 +334,6 @@
   const readyTier    = $('ready-tier');
   const readyEnter   = $('ready-enter');
   const readyFriend  = $('ready-friend');
-  const readySwitch  = $('ready-switch');
 
   function showClaim() {
     readyCard.hidden = true;
@@ -395,22 +394,6 @@
       }
     } catch {}
   }
-
-  // Switch / make alt — drops back to the claim form so the user can
-  // either type a different existing handle or claim a new one.
-  readySwitch?.addEventListener('click', () => {
-    claimedPlayerId = null;
-    claimedHandle   = null;
-    handleEl.value  = '';
-    setStatus('type to check availability', '');
-    availability = { ok: false, value: '' };
-    pendingPfpDataUrl = null;
-    pfpDrop.classList.remove('has-pfp');
-    pfpPreview.removeAttribute('src');
-    showClaim();
-    syncEnter();
-    setTimeout(() => claimCard.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
-  });
 
   readyEnter?.addEventListener('click', () => {
     if (!ageOk.checked) {
