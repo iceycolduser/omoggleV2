@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0a0a12" />
+<title>leaderboard · omoggle v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body class="page-board">
+
+<canvas id="bg-grid" aria-hidden="true"></canvas>
+
+<header class="topbar">
+  <a class="brand" href="/"><span class="brand-mark">o</span>moggle<span class="brand-v">v2</span></a>
+  <nav class="topnav">
+    <a href="/arena.html">arena</a>
+    <a href="/leaderboard.html" class="active">leaderboard</a>
+  </nav>
+</header>
+
+<main class="board">
+  <h1><span class="grad">global leaderboard</span></h1>
+  <div class="tabs">
+    <button class="tab active" data-board="elo">by elo</button>
+    <button class="tab" data-board="mogs">by mogs landed</button>
+  </div>
+  <div class="board-card">
+    <div class="board-head">
+      <span>#</span><span>handle</span><span>elo</span><span>psl</span><span>w/l/d</span><span>mogs</span>
+    </div>
+    <div id="board-rows" class="board-rows">
+      <div class="board-empty">loading…</div>
+    </div>
+  </div>
+</main>
+
+<footer class="foot">
+  <span>omoggle v2</span>
+  <span><a href="/terms.html">terms</a> · <a href="/privacy.html">privacy</a></span>
+</footer>
+
+<script src="/js/bg.js" defer></script>
+<script src="/js/leaderboard.js" defer></script>
+</body>
+</html>

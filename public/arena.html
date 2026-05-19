@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0a0a12" />
+<title>arena · omoggle v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body class="page-arena">
+
+<header class="topbar slim">
+  <a class="brand" href="/">
+    <span class="brand-mark">o</span>moggle<span class="brand-v">v2</span>
+  </a>
+  <div class="hud">
+    <span class="hud-cell"><b id="hud-handle">—</b><i>handle</i></span>
+    <span class="hud-cell"><b id="hud-elo">1000</b><i>elo</i></span>
+    <span class="hud-cell"><b id="hud-mogs">0</b><i>mogs</i></span>
+    <a class="hud-cell hud-link" href="/leaderboard.html">board ↗</a>
+  </div>
+</header>
+
+<main class="arena">
+  <!-- Stage 1: calibrate -->
+  <section id="stage-calibrate" class="stage" data-active="true">
+    <div class="cal-wrap">
+      <div class="cam-frame">
+        <video id="cal-video" playsinline autoplay muted></video>
+        <canvas id="cal-overlay"></canvas>
+        <div class="cam-corner tl"></div><div class="cam-corner tr"></div>
+        <div class="cam-corner bl"></div><div class="cam-corner br"></div>
+        <div id="cal-fitness" class="cal-fitness">no face detected</div>
+      </div>
+      <div class="cal-panel">
+        <h2>calibrate</h2>
+        <p>Center your face, even lighting, look at the lens. Models load locally (~6mb) once, then everything runs on your gpu.</p>
+        <div class="bar"><span>models</span><div class="bar-track"><div id="bar-models" class="bar-fill"></div></div><span id="bar-models-pct">0%</span></div>
+        <div class="bar"><span>camera</span><div class="bar-track"><div id="bar-cam" class="bar-fill"></div></div><span id="bar-cam-pct">0%</span></div>
+        <div class="bar"><span>face lock</span><div class="bar-track"><div id="bar-face" class="bar-fill"></div></div><span id="bar-face-pct">0%</span></div>
+        <div class="psl-readout">
+          <div class="psl-big" id="cal-psl">—</div>
+          <div class="psl-axes" id="cal-axes"></div>
+        </div>
+        <button id="btn-queue" class="btn primary big" disabled>queue 1v1 mog →</button>
+        <div class="hint" id="cal-hint">grant camera access to begin</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stage 2: queuing -->
+  <section id="stage-queue" class="stage">
+    <div class="queue-wrap">
+      <div class="pulse"></div>
+      <h2>searching for opponent</h2>
+      <p class="muted">elo-banded matchmaking · avg wait &lt; 8s</p>
+      <div class="queue-stats">
+        <div><b id="q-online">—</b><span>online</span></div>
+        <div><b id="q-elo">1000</b><span>your elo</span></div>
+        <div><b id="q-psl">—</b><span>your psl</span></div>
+      </div>
+      <button id="btn-cancel-queue" class="btn ghost">cancel</button>
+    </div>
+  </section>
+
+  <!-- Stage 3: battle -->
+  <section id="stage-battle" class="stage">
+    <div class="battle-grid">
+      <div class="seat me">
+        <div class="seat-tag"><b id="me-handle">you</b><span id="me-elo">1000</span></div>
+        <div class="cam-frame">
+          <video id="me-video" playsinline autoplay muted></video>
+          <canvas id="me-overlay"></canvas>
+          <div class="psl-tag"><span>psl</span><b id="me-psl">—</b></div>
+        </div>
+        <div class="axes" id="me-axes"></div>
+      </div>
+
+      <div class="vs">
+        <div class="timer" id="battle-timer">15</div>
+        <div class="vs-label">vs</div>
+        <div class="round-badge">round 1</div>
+        <div class="battle-actions">
+          <button id="btn-skip" class="btn ghost sm">skip</button>
+          <button id="btn-report" class="btn danger sm">report</button>
+        </div>
+      </div>
+
+      <div class="seat opp">
+        <div class="seat-tag"><b id="opp-handle">opponent</b><span id="opp-elo">1000</span></div>
+        <div class="cam-frame">
+          <video id="opp-video" playsinline autoplay></video>
+          <div class="psl-tag"><span>psl</span><b id="opp-psl">—</b></div>
+          <div id="opp-waiting" class="opp-waiting">waiting for video…</div>
+        </div>
+        <div class="axes" id="opp-axes"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stage 4: result -->
+  <section id="stage-result" class="stage">
+    <div class="result-wrap">
+      <div id="result-banner" class="result-banner">—</div>
+      <div class="result-numbers">
+        <div class="rn">
+          <span>your psl</span><b id="r-mypsl">—</b>
+        </div>
+        <div class="rn">
+          <span>their psl</span><b id="r-opsl">—</b>
+        </div>
+        <div class="rn">
+          <span>elo Δ</span><b id="r-delta">—</b>
+        </div>
+        <div class="rn">
+          <span>new elo</span><b id="r-elo">—</b>
+        </div>
+      </div>
+      <div class="result-actions">
+        <button id="btn-rematch" class="btn primary">queue again →</button>
+        <a href="/leaderboard.html" class="btn ghost">view board</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js" defer></script>
+<script src="/socket.io/socket.io.js" defer></script>
+<script src="/js/face-analyzer.js" defer></script>
+<script src="/js/webrtc-client.js" defer></script>
+<script src="/js/arena.js" defer></script>
+</body>
+</html>
