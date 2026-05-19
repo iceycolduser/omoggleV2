@@ -586,14 +586,17 @@ a:hover { color: var(--accent); }
   margin-left: 6px; text-transform: lowercase; letter-spacing: 0.06em;
   border: 1px solid currentColor; opacity: 0.95;
 }
-.tier-bronze       { color: #b87333; }
-.tier-silver       { color: #b8c2cf; }
-.tier-gold         { color: #ffd35a; }
-.tier-platinum     { color: #6ad8ff; }
-.tier-diamond      { color: #b8ff3a; }
-.tier-master       { color: #ff3aa1; }
-.tier-state-mogger { color: #ffffff; background: linear-gradient(135deg, rgba(184,255,58,0.18), rgba(255,58,161,0.18)); }
-.tier-unranked     { color: var(--muted); }
+.tier-unranked          { color: var(--muted); }
+.tier-chud              { color: #ff5c7a; }
+.tier-ugly              { color: #ff8c5a; }
+.tier-little-small-chad { color: #ffd35a; }
+.tier-chadlike          { color: #b8ff3a; }
+.tier-chad-beast {
+  color: #fff;
+  background: linear-gradient(135deg, rgba(184,255,58,0.22), rgba(255,58,161,0.22));
+  border-color: rgba(255,255,255,0.6);
+  text-shadow: 0 0 8px rgba(255,255,255,0.4);
+}
 
 /* mode banner during battle */
 .mode-banner {
@@ -673,23 +676,22 @@ a:hover { color: var(--accent); }
   .features { grid-template-columns: repeat(2, 1fr); }
   .cal-wrap { grid-template-columns: 1fr; }
 
-  /* Battle layout on mobile: both faces visible on one screen, no scroll.
-     Each cam frame is height-capped; the VS strip between them is compact;
-     the per-axis breakdown panels move out of the way (the in-frame psl
-     tag is still there, that's the readable bit during the round). */
+  /* Battle layout on mobile: stack vertically, keep each cam frame at the
+     normal 4:3 horizontal aspect (the camera streams landscape — letting
+     the frame go portrait turned video into a tall slice of forehead).
+     Two 4:3 frames at full width + a compact VS strip fit comfortably on
+     a portrait phone without scroll. */
   .arena { padding: 10px; }
   .battle-grid {
     grid-template-columns: 1fr;
-    grid-template-rows: 1fr auto 1fr;
+    grid-template-rows: auto auto auto;
     gap: 6px;
-    height: calc(100dvh - 76px);     /* below the slim topbar */
   }
-  .seat { gap: 4px; min-height: 0; }
+  .seat { gap: 4px; }
   .seat .cam-frame {
-    aspect-ratio: auto;
     width: 100%;
-    height: 100%;
-    min-height: 0;
+    aspect-ratio: 4 / 3;
+    height: auto;
   }
   .axes { display: none; }            /* free up the vertical budget */
   .seat-tag { padding: 0 2px; font-size: 13px; }

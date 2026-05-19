@@ -113,16 +113,18 @@ function validateHandle(raw) {
 }
 
 // ---------- rank tiers ----------
-// kept server-side so APIs return a canonical tier next to elo
-function rankTier(elo) {
-  if (elo < 800)  return 'bronze';
-  if (elo < 1000) return 'silver';
-  if (elo < 1200) return 'gold';
-  if (elo < 1400) return 'platinum';
-  if (elo < 1600) return 'diamond';
-  if (elo < 1800) return 'master';
-  return 'state-mogger';
+// kept server-side so APIs return a canonical tier next to elo.
+// "unranked" is anyone who hasn't completed a single match yet; after that
+// the climb goes chud → ugly → little small Chad → Chadlike → Chad beast.
+function rankTier(elo, matchesPlayed) {
+  if (matchesPlayed != null && matchesPlayed === 0) return 'unranked';
+  if (elo < 800)  return 'chud';
+  if (elo < 1000) return 'ugly';
+  if (elo < 1200) return 'little small Chad';
+  if (elo < 1400) return 'Chadlike';
+  return 'Chad beast';
 }
+function matchesOf(p) { return (p.wins || 0) + (p.losses || 0) + (p.draws || 0); }
 
 // ---------- queries ----------
 const queries = {
@@ -225,14 +227,14 @@ app.get('/api/stats', (_req, res) => {
 app.get('/api/leaderboard', (req, res) => {
   const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
   const rows = req.query.board === 'mogs' ? queries.topMogs.all(limit) : queries.topElo.all(limit);
-  const board = rows.map((p) => ({ ...p, tier: rankTier(p.elo) }));
+  const board = rows.map((p) => ({ ...p, tier: rankTier(p.elo, matchesOf(p)) }));
   res.json({ board });
 });
 
 app.get('/api/me/:id', (req, res) => {
   const p = queries.getPlayer.get(req.params.id);
   if (!p) return res.status(404).json({ error: 'not_found' });
-  res.json({ ...p, tier: rankTier(p.elo) });
+  res.json({ ...p, tier: rankTier(p.elo, matchesOf(p)) });
 });
 
 // quick existence check used by the home form for inline feedback
@@ -263,7 +265,7 @@ app.post('/api/claim', claimLimiter, (req, res) => {
   }
   const p = queries.getPlayer.get(id);
   res.json({
-    playerId: id, handle: p.handle, elo: p.elo, tier: rankTier(p.elo),
+    playerId: id, handle: p.handle, elo: p.elo, tier: rankTier(p.elo, matchesOf(p)),
     psl: p.psl, wins: p.wins, losses: p.losses, draws: p.draws, mogs: p.mogs,
     hasPfp: !!p.has_pfp,
   });
@@ -418,13 +420,15 @@ function startMatch(sa, sb, opts = {}) {
   sa.data.matchMode = mode;   sb.data.matchMode = mode;
   sa.join(matchId);           sb.join(matchId);
 
+  const pb = queries.getPlayer.get(sb.data.playerId);
+  const pa = queries.getPlayer.get(sa.data.playerId);
   const opPayloadForA = {
     handle: sb.data.handle, elo: sb.data.elo, psl: sb.data.psl,
-    tier: rankTier(sb.data.elo), playerId: sb.data.playerId,
+    tier: rankTier(sb.data.elo, pb ? matchesOf(pb) : null), playerId: sb.data.playerId,
   };
   const opPayloadForB = {
     handle: sa.data.handle, elo: sa.data.elo, psl: sa.data.psl,
-    tier: rankTier(sa.data.elo), playerId: sa.data.playerId,
+    tier: rankTier(sa.data.elo, pa ? matchesOf(pa) : null), playerId: sa.data.playerId,
   };
   sa.emit('match:start', { matchId, role: 'caller', mode, opponent: opPayloadForA });
   sb.emit('match:start', { matchId, role: 'callee', mode, opponent: opPayloadForB });
@@ -489,15 +493,18 @@ function endMatch(matchId, winnerSocket, loserSocket, draw, payload) {
   });
 
   const e1 = p1.elo + d1, e2 = p2.elo + d2;
+  // matches played AFTER this match — only increments for ranked games
+  const m1 = matchesOf(p1) + (ranked ? 1 : 0);
+  const m2 = matchesOf(p2) + (ranked ? 1 : 0);
   s1.emit('match:result', {
     mode, ranked,
     youWon: s1Score === 1, draw, opponentPsl: bPsl, yourPsl: aPsl,
-    eloDelta: d1, newElo: e1, tier: rankTier(e1), opponentEloDelta: d2,
+    eloDelta: d1, newElo: e1, tier: rankTier(e1, m1), opponentEloDelta: d2,
   });
   s2.emit('match:result', {
     mode, ranked,
     youWon: s2Score === 1, draw, opponentPsl: aPsl, yourPsl: bPsl,
-    eloDelta: d2, newElo: e2, tier: rankTier(e2), opponentEloDelta: d1,
+    eloDelta: d2, newElo: e2, tier: rankTier(e2, m2), opponentEloDelta: d1,
   });
 
   s1.data.elo = e1; s2.data.elo = e2;
@@ -538,7 +545,7 @@ io.on('connection', (socket) => {
     socket.data.elo = p.elo;
     socket.data.psl = p.psl;
     ack?.({
-      playerId: p.id, handle: p.handle, elo: p.elo, tier: rankTier(p.elo),
+      playerId: p.id, handle: p.handle, elo: p.elo, tier: rankTier(p.elo, matchesOf(p)),
       psl: p.psl, wins: p.wins, losses: p.losses, draws: p.draws, mogs: p.mogs,
       hasPfp: !!p.has_pfp,
     });
