@@ -309,8 +309,6 @@
     location.href = '/arena.html?host=1';
   });
 
-  btnCopyLink.addEventListener('click', () => {});  // unused on home
-
   joinCodeEl.addEventListener('input', () => {
     joinCodeEl.value = joinCodeEl.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
   });
