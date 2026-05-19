@@ -323,8 +323,9 @@
     location.href = '/arena.html?room=' + encodeURIComponent(code);
   });
 
-  // ---------- welcome-back card ----------
-  const welcomeCard   = $('welcome-card');
+  // ---------- welcome-back modal ----------
+  const welcomeModal  = $('welcome-modal');
+  const welcomeClose  = $('welcome-close');
   const claimCard     = $('claim-card');
   const welcomePfp    = $('welcome-pfp');
   const welcomePfpInit = $('welcome-pfp-initial');
@@ -340,14 +341,27 @@
   const btnNewAlt      = $('btn-new-alt');
 
   function showClaim() {
-    welcomeCard.hidden = true;
+    welcomeModal.hidden = true;
+    document.body.style.overflow = '';
     claimCard.hidden = false;
   }
   function showWelcome() {
     claimCard.hidden = true;
-    welcomeCard.hidden = false;
+    welcomeModal.hidden = false;
+    document.body.style.overflow = 'hidden';
     switcherPanel.hidden = true;
   }
+  function dismissWelcome() {
+    welcomeModal.hidden = true;
+    document.body.style.overflow = '';
+  }
+
+  // Close button + click-outside-card dismiss. Refreshing the page brings
+  // the modal back, which is the behaviour the user explicitly asked for.
+  welcomeClose?.addEventListener('click', dismissWelcome);
+  welcomeModal?.addEventListener('click', (e) => {
+    if (e.target === welcomeModal) dismissWelcome();
+  });
 
   async function paintWelcome(account) {
     welcomeHandle.textContent = account.handle;
@@ -469,6 +483,7 @@
   });
   welcomeFriend?.addEventListener('click', () => {
     if (!ageOk.checked) { flashWelcome('check the 18+ box first'); return; }
+    dismissWelcome();
     friendOverlay.hidden = false;
     document.body.style.overflow = 'hidden';
   });
@@ -477,7 +492,7 @@
     const t = document.createElement('div');
     t.className = 'welcome-flash';
     t.textContent = text;
-    welcomeCard.appendChild(t);
+    welcomeModal.querySelector('.welcome-card')?.appendChild(t);
     setTimeout(() => t.remove(), 1800);
   }
 
