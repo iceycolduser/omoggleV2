@@ -60,9 +60,29 @@ db.exec(`
 for (const sql of [
   `ALTER TABLE players ADD COLUMN handle_lower TEXT`,
   `ALTER TABLE players ADD COLUMN has_pfp INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE players ADD COLUMN last_ip TEXT`,
+  `ALTER TABLE players ADD COLUMN created_ip TEXT`,
   `ALTER TABLE matches ADD COLUMN mode TEXT NOT NULL DEFAULT 'ranked'`,
   `UPDATE players SET handle_lower = LOWER(handle) WHERE handle_lower IS NULL`,
   `CREATE INDEX IF NOT EXISTS idx_players_handle_lower ON players(handle_lower)`,
+  `CREATE INDEX IF NOT EXISTS idx_players_last_ip ON players(last_ip)`,
+  `CREATE TABLE IF NOT EXISTS reports (
+     id INTEGER PRIMARY KEY AUTOINCREMENT,
+     reporter_id TEXT,
+     target_id TEXT,
+     match_id TEXT,
+     reason TEXT,
+     reporter_ip TEXT,
+     target_ip TEXT,
+     ts INTEGER NOT NULL,
+     resolved INTEGER NOT NULL DEFAULT 0
+   )`,
+  `CREATE INDEX IF NOT EXISTS idx_reports_unresolved ON reports(resolved, ts DESC)`,
+  `CREATE TABLE IF NOT EXISTS bans (
+     ip TEXT PRIMARY KEY,
+     reason TEXT,
+     banned_at INTEGER NOT NULL
+   )`,
 ]) {
   try { db.exec(sql); } catch (e) {
     if (!/duplicate column|already exists/i.test(e.message)) throw e;
@@ -177,6 +197,17 @@ const queries = {
     SELECT
       (SELECT COUNT(*) FROM players) AS players,
       (SELECT COUNT(*) FROM matches WHERE ended_at IS NOT NULL) AS matches
+  `),
+  setPlayerIp: db.prepare(`
+    UPDATE players SET last_ip = @ip,
+                       created_ip = COALESCE(created_ip, @ip),
+                       last_seen = @now
+     WHERE id = @id
+  `),
+  banIp: db.prepare(`SELECT ip FROM bans WHERE ip = ?`),
+  insertReport: db.prepare(`
+    INSERT INTO reports (reporter_id, target_id, match_id, reason, reporter_ip, target_ip, ts)
+    VALUES (@reporter_id, @target_id, @match_id, @reason, @reporter_ip, @target_ip, @ts)
   `),
 };
 
@@ -528,6 +559,14 @@ function endMatch(matchId, winnerSocket, loserSocket, draw, payload) {
 }
 
 // ---------- sockets ----------
+function clientIpOf(socket) {
+  // Prefer X-Forwarded-For (set by nginx) over the raw socket address since
+  // app.set('trust proxy', 1) is enabled. Take the first hop as the real client.
+  const xff = socket.handshake.headers['x-forwarded-for'];
+  if (xff) return String(xff).split(',')[0].trim();
+  return (socket.handshake.address || '').replace(/^::ffff:/, '');
+}
+
 io.on('connection', (socket) => {
   socket.data.playerId = null;
   socket.data.handle = null;
@@ -536,6 +575,13 @@ io.on('connection', (socket) => {
   socket.data.matchId = null;
   socket.data.opponent = null;
   socket.data.matchMode = null;
+  socket.data.ip = clientIpOf(socket);
+  // refuse banned IPs immediately
+  if (socket.data.ip && queries.banIp.get(socket.data.ip)) {
+    socket.emit('banned', { reason: 'ip_banned' });
+    socket.disconnect(true);
+    return;
+  }
   sockets.set(socket.id, socket);
 
   // Hello must arrive AFTER /api/claim — the client passes the claimed
@@ -552,7 +598,7 @@ io.on('connection', (socket) => {
       // not fatal — the canonical name is what we stored
     }
     const now = Date.now();
-    queries.touchPlayer.run({ id: p.id, now });
+    queries.setPlayerIp.run({ id: p.id, ip: socket.data.ip || null, now });
     socket.data.playerId = p.id;
     socket.data.handle = p.handle;
     socket.data.elo = p.elo;
@@ -673,11 +719,19 @@ io.on('connection', (socket) => {
   socket.on('match:report', ({ reason }) => {
     const oppId = socket.data.opponent;
     const matchId = socket.data.matchId;
-    console.warn('[report]', socket.data.playerId, '->', oppId, 'match', matchId, 'reason', String(reason || '').slice(0, 80));
-    if (matchId) {
-      const opp = oppId ? io.sockets.sockets.get(oppId) : null;
-      if (opp) endMatch(matchId, null, null, true, { aPsl: null, bPsl: null });
-    }
+    const opp = oppId ? io.sockets.sockets.get(oppId) : null;
+    const trimmedReason = String(reason || '').slice(0, 200);
+    queries.insertReport.run({
+      reporter_id: socket.data.playerId,
+      target_id:   opp ? opp.data.playerId : null,
+      match_id:    matchId,
+      reason:      trimmedReason,
+      reporter_ip: socket.data.ip || null,
+      target_ip:   opp ? (opp.data.ip || null) : null,
+      ts: Date.now(),
+    });
+    console.warn('[report]', socket.data.playerId, '->', oppId, 'match', matchId, 'reason', trimmedReason);
+    if (matchId && opp) endMatch(matchId, null, null, true, { aPsl: null, bPsl: null });
   });
 
   socket.on('disconnect', () => {
