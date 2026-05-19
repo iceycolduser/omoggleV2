@@ -157,6 +157,38 @@ cmds['ban-player'] = (args) => {
   console.log(`banned ${ips.length} ip(s) belonging to ${p.handle}: ${[...new Set(ips)].join(', ')}`);
 };
 
+cmds['set-elo'] = (args) => {
+  const p = ensurePlayer(args[0]);
+  const elo = parseInt(args[1], 10);
+  if (!Number.isFinite(elo) || elo < 0 || elo > 5000) {
+    console.error('usage: set-elo <id|handle> <0..5000>'); process.exit(1);
+  }
+  db.prepare('UPDATE players SET elo = ?, last_seen = ? WHERE id = ?').run(elo, Date.now(), p.id);
+  console.log(`${p.handle}: elo ${p.elo} → ${elo}`);
+};
+
+cmds['set-stats'] = (args) => {
+  const p = ensurePlayer(args[0]);
+  const { flags } = parseFlags(args.slice(1));
+  const fields = { wins: 'wins', losses: 'losses', draws: 'draws', mogs: 'mogs' };
+  const sets = []; const vals = [];
+  for (const k of Object.keys(fields)) {
+    if (flags[k] !== undefined) {
+      const v = parseInt(flags[k], 10);
+      if (!Number.isFinite(v) || v < 0) { console.error(`bad value for --${k}`); process.exit(1); }
+      sets.push(`${fields[k]} = ?`); vals.push(v);
+    }
+  }
+  if (!sets.length) {
+    console.error('usage: set-stats <id|handle> [--wins=N] [--losses=N] [--draws=N] [--mogs=N]');
+    process.exit(1);
+  }
+  vals.push(Date.now(), p.id);
+  db.prepare(`UPDATE players SET ${sets.join(', ')}, last_seen = ? WHERE id = ?`).run(...vals);
+  const after = findPlayer(p.id);
+  console.log(`${p.handle}: ${after.wins}W ${after.losses}L ${after.draws}D · ${after.mogs} mogs`);
+};
+
 cmds.reset = (args) => {
   const p = ensurePlayer(args[0]);
   const r = db.prepare(`
@@ -229,6 +261,9 @@ cmds.help = () => {
   ban-ip <ip> [reason]            permanently ban an IP
   unban-ip <ip>                   lift an IP ban
   ban-player <id|handle> [reason] ban the player's last-known IP
+  set-elo <id|handle> <0..5000>   set a player's ELO (tier follows)
+  set-stats <id|handle> --wins=N --losses=N --draws=N --mogs=N
+                                  set any subset of W/L/D/mogs counters
   reset <id|handle>               wipe their stats (handle + id kept)
   delete <id|handle>              fully delete the player + pfp + their matches
   player <id|handle>              show a player's full record
