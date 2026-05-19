@@ -301,7 +301,7 @@ a:hover { color: var(--accent); }
   overflow: hidden; border: 1px solid var(--line);
   box-shadow: var(--shadow);
 }
-.cam-frame video { width: 100%; height: 100%; object-fit: contain; background: #000; transform: scaleX(-1); }
+.cam-frame video { width: 100%; height: 100%; object-fit: cover; background: #000; transform: scaleX(-1); }
 .cam-frame canvas { position: absolute; inset: 0; width: 100%; height: 100%; transform: scaleX(-1); pointer-events: none; }
 .cam-corner {
   position: absolute; width: 22px; height: 22px;
@@ -676,13 +676,12 @@ a:hover { color: var(--accent); }
   .features { grid-template-columns: repeat(2, 1fr); }
   .cal-wrap { grid-template-columns: 1fr; }
 
-  /* Portrait phones: force a 16:9 landscape camera frame everywhere
-     (calibrate + battle). Phones hold their camera stream landscape
-     anyway; matching the frame to that gives a wide, horizontal box
-     instead of a near-square. Two 16:9 frames + a compact VS strip
-     fit on a portrait screen with room to spare. */
+  /* Portrait phones: keep the cam frame at 4:3 so the camera stream
+     (which is also ~4:3 from a phone selfie cam in this orientation)
+     fills the whole box edge-to-edge with object-fit: cover. 16:9
+     was pillarboxing because the camera is narrower than the box. */
   .arena { padding: 10px; }
-  .cam-frame { aspect-ratio: 16 / 9; }
+  .cam-frame { aspect-ratio: 4 / 3; }
   .battle-grid {
     grid-template-columns: 1fr;
     grid-template-rows: auto auto auto;
@@ -691,7 +690,7 @@ a:hover { color: var(--accent); }
   .seat { gap: 4px; }
   .seat .cam-frame {
     width: 100%;
-    aspect-ratio: 16 / 9;
+    aspect-ratio: 4 / 3;
     height: auto;
   }
   .axes { display: none; }            /* free up the vertical budget */
