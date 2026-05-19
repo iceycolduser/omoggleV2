@@ -1,0 +1,26 @@
+# Optional: bare systemd unit if you don't want pm2.
+# sudo cp this to /etc/systemd/system/omoggle.service
+# sudo systemctl daemon-reload && sudo systemctl enable --now omoggle
+
+[Unit]
+Description=omoggle v2 (node)
+After=network.target
+
+[Service]
+Type=simple
+User=omoggle
+WorkingDirectory=/srv/omoggle
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=3
+Environment=NODE_ENV=production
+Environment=PORT=8080
+Environment=HOST=127.0.0.1
+LimitNOFILE=65535
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

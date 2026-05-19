@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0a0a12" />
+<title>omoggle v2 — live 1v1 mog arena</title>
+<meta name="description" content="Omoggle V2 — live 1v1 mog battle with on-device PSL face analysis, ELO ranking, and a global leaderboard." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body class="page-home">
+
+<canvas id="bg-grid" aria-hidden="true"></canvas>
+
+<header class="topbar">
+  <a class="brand" href="/">
+    <span class="brand-mark">o</span>moggle<span class="brand-v">v2</span>
+  </a>
+  <nav class="topnav">
+    <a href="/leaderboard.html">leaderboard</a>
+    <a href="#how">how it works</a>
+    <a href="#faq">faq</a>
+  </nav>
+</header>
+
+<main class="home">
+  <section class="hero">
+    <span class="pill"><span class="dot"></span><span id="online-count">—</span> online · <span id="match-count">—</span> mogs settled</span>
+    <h1>
+      <span class="glitch" data-text="live 1v1">live 1v1</span>
+      <span class="grad">mog arena</span>
+    </h1>
+    <p class="sub">
+      Two strangers. Fifteen seconds. The camera tells the truth.
+      On-device PSL analysis grades symmetry, harmony, jaw, canthal tilt, and skin —
+      then ELO is exchanged. No upload. No download. No mercy.
+    </p>
+
+    <form id="enter-form" class="enter" autocomplete="off">
+      <label class="field">
+        <span>handle</span>
+        <input id="handle" type="text" maxlength="20" placeholder="anon" inputmode="text" />
+      </label>
+      <button type="submit" id="enter-btn" class="btn primary">enter the arena →</button>
+    </form>
+
+    <label class="age-check">
+      <input id="age-ok" type="checkbox" />
+      I am 18+ and consent to live webcam matchmaking with strangers.
+    </label>
+
+    <div class="hero-stats">
+      <div><strong id="your-elo">1000</strong><span>your elo</span></div>
+      <div><strong id="your-psl">—</strong><span>last psl</span></div>
+      <div><strong id="your-mogs">0</strong><span>mogs landed</span></div>
+    </div>
+  </section>
+
+  <section class="features" id="how">
+    <article>
+      <h3>on-device analysis</h3>
+      <p>Your face is graded in your browser. Landmarks never leave the device. We compute symmetry, harmonic ratios, jawline definition, canthal tilt, and skin uniformity — then collapse it into a PSL score.</p>
+    </article>
+    <article>
+      <h3>15-second face-off</h3>
+      <p>Camera goes hot for fifteen seconds. Both faces are scored live; the higher composite wins the round and the ELO swing.</p>
+    </article>
+    <article>
+      <h3>ranked, not random</h3>
+      <p>Queue matches by ELO band first, so you fight at your weight. Climb from <em>chad-adjacent</em> to <em>state-mogger</em> and pin a spot on the global board.</p>
+    </article>
+    <article>
+      <h3>v2 upgrades</h3>
+      <p>Five-axis breakdown, live landmark overlay, fairer matchmaking, mobile-native layout, instant rematch, no signup, no download.</p>
+    </article>
+  </section>
+
+  <section class="faq" id="faq">
+    <h2>frequently asked</h2>
+    <details><summary>does anything leave my device?</summary><p>No video frames or landmarks are uploaded. Only the final composite PSL number is sent to score the round.</p></details>
+    <details><summary>what is psl?</summary><p>A community shorthand for a holistic facial-aesthetic score (0–10). V2 derives it from five measurable axes; treat it as a game metric, not a verdict on you.</p></details>
+    <details><summary>can i skip?</summary><p>Yes — skip, mute, and report are one tap each. Skips early in the round are free; conceding mid-round costs ELO.</p></details>
+    <details><summary>is this just omoggle.com?</summary><p>Inspired by it. V2 has a five-axis breakdown, ELO-band queue, live overlay, mobile layout, and runs on our own infra so we can keep it sharp.</p></details>
+  </section>
+</main>
+
+<footer class="foot">
+  <span>omoggle v2 · self-hosted</span>
+  <span><a href="/terms.html">terms</a> · <a href="/privacy.html">privacy</a></span>
+</footer>
+
+<script src="/js/bg.js" defer></script>
+<script src="/js/home.js" defer></script>
+</body>
+</html>
