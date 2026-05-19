@@ -323,66 +323,46 @@
     location.href = '/arena.html?room=' + encodeURIComponent(code);
   });
 
-  // ---------- welcome-back modal ----------
-  const welcomeModal  = $('welcome-modal');
-  const welcomeClose  = $('welcome-close');
-  const claimCard     = $('claim-card');
-  const welcomePfp    = $('welcome-pfp');
-  const welcomePfpInit = $('welcome-pfp-initial');
-  const welcomeHandle = $('welcome-handle');
-  const welcomeElo    = $('welcome-elo');
-  const welcomeMogs   = $('welcome-mogs');
-  const welcomeTier   = $('welcome-tier');
-  const welcomeEnter  = $('welcome-enter');
-  const welcomeFriend = $('welcome-friend');
-  const switcherToggle = $('btn-switch');
-  const switcherPanel  = $('switcher-panel');
-  const accountList    = $('account-list');
-  const btnNewAlt      = $('btn-new-alt');
+  // ---------- ready card (inline, shown when an account is saved) ----------
+  const claimCard    = $('claim-card');
+  const readyCard    = $('ready-card');
+  const readyPfp     = $('ready-pfp');
+  const readyPfpInit = $('ready-pfp-initial');
+  const readyHandle  = $('ready-handle');
+  const readyElo     = $('ready-elo');
+  const readyMogs    = $('ready-mogs');
+  const readyTier    = $('ready-tier');
+  const readyEnter   = $('ready-enter');
+  const readyFriend  = $('ready-friend');
+  const readySwitch  = $('ready-switch');
 
   function showClaim() {
-    welcomeModal.hidden = true;
-    document.body.style.overflow = '';
+    readyCard.hidden = true;
     claimCard.hidden = false;
   }
-  function showWelcome() {
+  function showReady() {
     claimCard.hidden = true;
-    welcomeModal.hidden = false;
-    document.body.style.overflow = 'hidden';
-    switcherPanel.hidden = true;
-  }
-  function dismissWelcome() {
-    welcomeModal.hidden = true;
-    document.body.style.overflow = '';
+    readyCard.hidden = false;
   }
 
-  // Close button + click-outside-card dismiss. Refreshing the page brings
-  // the modal back, which is the behaviour the user explicitly asked for.
-  welcomeClose?.addEventListener('click', dismissWelcome);
-  welcomeModal?.addEventListener('click', (e) => {
-    if (e.target === welcomeModal) dismissWelcome();
-  });
-
-  async function paintWelcome(account) {
-    welcomeHandle.textContent = account.handle;
-    welcomePfpInit.textContent = (account.handle[0] || '?').toUpperCase();
-    welcomePfp.removeAttribute('src');
-    welcomePfp.style.display = 'none';
-    welcomePfpInit.style.display = '';
-    // Try loading the pfp; fall back to initial if it 404s.
+  async function paintReady(account) {
+    readyHandle.textContent = account.handle;
+    readyPfpInit.textContent = (account.handle[0] || '?').toUpperCase();
+    readyPfp.removeAttribute('src');
+    readyPfp.style.display = 'none';
+    readyPfpInit.style.display = '';
     const probe = new Image();
     probe.onload = () => {
-      welcomePfp.src = probe.src;
-      welcomePfp.style.display = '';
-      welcomePfpInit.style.display = 'none';
+      readyPfp.src = probe.src;
+      readyPfp.style.display = '';
+      readyPfpInit.style.display = 'none';
     };
     probe.src = `/pfp/${encodeURIComponent(account.id)}?t=${Date.now()}`;
 
-    // Fetch fresh stats so the welcome reflects current elo/tier/mogs.
     try {
       const r = await fetch(`/api/me/${encodeURIComponent(account.id)}`);
       if (r.status === 404) {
-        // Server forgot this account (db reset, manual delete) — prune it.
+        // Server forgot this account (db reset) — drop it and fall back.
         const list = loadAccounts().filter(a => a.id !== account.id);
         saveAccounts(list);
         if (list.length) {
@@ -390,7 +370,6 @@
           claimedPlayerId = list[0].id; claimedHandle = list[0].handle;
           return bootstrapAccountUI();
         }
-        // no accounts left — drop to claim form
         localStorage.removeItem(ID_KEY);
         localStorage.removeItem(HANDLE_KEY);
         claimedPlayerId = null; claimedHandle = null;
@@ -399,13 +378,12 @@
       }
       if (r.ok) {
         const p = await r.json();
-        welcomeElo.textContent  = p.elo;
-        welcomeMogs.textContent = p.mogs ?? 0;
+        readyElo.textContent  = p.elo;
+        readyMogs.textContent = p.mogs ?? 0;
         const tier = p.tier || 'unranked';
         const slug = tier.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z\-]/g, '');
-        welcomeTier.textContent = tier;
-        welcomeTier.className = 'tier-pill tier-' + slug;
-        // mirror into hero stats / stats key
+        readyTier.textContent = tier;
+        readyTier.className = 'tier-pill tier-' + slug;
         $('your-elo').textContent  = p.elo;
         $('your-mogs').textContent = p.mogs ?? 0;
         $('your-tier').textContent = tier;
@@ -418,50 +396,12 @@
     } catch {}
   }
 
-  function renderSwitcher() {
-    const list = loadAccounts();
-    const curId = localStorage.getItem(ID_KEY);
-    accountList.innerHTML = list.map(a => {
-      const isActive = a.id === curId;
-      const initial = (a.handle[0] || '?').toUpperCase();
-      return `<button class="account-item ${isActive ? 'active' : ''}" data-id="${a.id}" type="button">
-        <span class="account-pfp">
-          <img src="/pfp/${encodeURIComponent(a.id)}" alt="" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
-          <span class="account-pfp-fallback">${initial}</span>
-        </span>
-        <span class="account-handle">${escapeHtml(a.handle)}</span>
-        ${a.isMain ? '<span class="account-badge main">main</span>' : '<span class="account-badge alt">alt</span>'}
-        ${isActive ? '<span class="account-badge active-tag">active</span>' : ''}
-      </button>`;
-    }).join('');
-    accountList.querySelectorAll('.account-item').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const id = btn.dataset.id;
-        const acc = list.find(a => a.id === id);
-        if (!acc) return;
-        setCurrent(acc.id, acc.handle);
-        claimedPlayerId = acc.id;
-        claimedHandle = acc.handle;
-        bootstrapAccountUI();
-      });
-    });
-  }
-  function escapeHtml(s) {
-    return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  }
-
-  switcherToggle?.addEventListener('click', () => {
-    switcherPanel.hidden = !switcherPanel.hidden;
-    if (!switcherPanel.hidden) renderSwitcher();
-  });
-
-  btnNewAlt?.addEventListener('click', () => {
-    // Keep the existing accounts; just route the user through the claim form.
-    // After successful claim, addOrUpdateAccount will push the new one and
-    // mark the user's view back to the welcome card on next entry.
+  // Switch / make alt — drops back to the claim form so the user can
+  // either type a different existing handle or claim a new one.
+  readySwitch?.addEventListener('click', () => {
     claimedPlayerId = null;
-    claimedHandle = null;
-    handleEl.value = '';
+    claimedHandle   = null;
+    handleEl.value  = '';
     setStatus('type to check availability', '');
     availability = { ok: false, value: '' };
     pendingPfpDataUrl = null;
@@ -469,34 +409,27 @@
     pfpPreview.removeAttribute('src');
     showClaim();
     syncEnter();
-    // scroll into view
     setTimeout(() => claimCard.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   });
 
-  welcomeEnter?.addEventListener('click', () => {
+  readyEnter?.addEventListener('click', () => {
     if (!ageOk.checked) {
-      // age check must still be honoured even with a saved account
-      flashWelcome('check the 18+ box first');
+      // First-time visitor will not have an account anyway; this branch is
+      // for cookie wipes that kept ID_KEY but not AGE_KEY. Bounce them to
+      // the claim form so they can re-accept.
+      showClaim();
+      ageOk.focus();
       return;
     }
     location.href = '/arena.html';
   });
-  welcomeFriend?.addEventListener('click', () => {
-    if (!ageOk.checked) { flashWelcome('check the 18+ box first'); return; }
-    dismissWelcome();
+  readyFriend?.addEventListener('click', () => {
+    if (!ageOk.checked) { showClaim(); ageOk.focus(); return; }
     friendOverlay.hidden = false;
     document.body.style.overflow = 'hidden';
   });
 
-  function flashWelcome(text) {
-    const t = document.createElement('div');
-    t.className = 'welcome-flash';
-    t.textContent = text;
-    welcomeModal.querySelector('.welcome-card')?.appendChild(t);
-    setTimeout(() => t.remove(), 1800);
-  }
-
-  // Bootstrap: decide whether to show welcome card or claim form.
+  // Bootstrap: an account in storage → ready card. Otherwise → claim card.
   function bootstrapAccountUI() {
     const list = loadAccounts();
     if (!list.length) { showClaim(); return; }
@@ -506,10 +439,10 @@
       current = list.find(a => a.isMain) || list[0];
       setCurrent(current.id, current.handle);
       claimedPlayerId = current.id;
-      claimedHandle = current.handle;
+      claimedHandle   = current.handle;
     }
-    showWelcome();
-    paintWelcome(current);
+    showReady();
+    paintReady(current);
   }
   bootstrapAccountUI();
 
