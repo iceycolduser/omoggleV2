@@ -172,6 +172,11 @@
     $('cal-hint').textContent = 'center your face. when face-lock hits 100%, you can queue.';
 
     let goodFrames = 0;
+    // Once we hit 100% face-lock we latch it — the queue button and the
+    // bar stay green even if detection drops later (user looking away,
+    // moving the phone, momentary occlusion). The status pill still
+    // reflects live detection state for feedback.
+    let faceLocked = false;
     analyzer = OmoggleFace.create({
       video: $('cal-video'),
       overlay: $('cal-overlay'),
@@ -179,13 +184,15 @@
       onTick: (s) => {
         const fit = $('cal-fitness');
         if (!s.detected) {
-          goodFrames = Math.max(0, goodFrames - 2);
+          if (!faceLocked) {
+            goodFrames = Math.max(0, goodFrames - 2);
+            setBar('face', Math.min(100, goodFrames * 5));
+            $('btn-queue').disabled = true;
+            $('cal-psl').textContent = '—';
+            renderAxes($('cal-axes'), null);
+          }
           fit.textContent = 'no face detected';
-          fit.style.color = 'var(--danger)';
-          setBar('face', Math.min(100, goodFrames * 5));
-          $('cal-psl').textContent = '—';
-          renderAxes($('cal-axes'), null);
-          $('btn-queue').disabled = true;
+          fit.style.color = faceLocked ? 'var(--warn)' : 'var(--danger)';
           return;
         }
         goodFrames = Math.min(20, goodFrames + 1);
@@ -196,6 +203,9 @@
         renderAxes($('cal-axes'), s);
         if (goodFrames >= 12) {
           $('btn-queue').disabled = false;
+        }
+        if (goodFrames >= 20) {
+          faceLocked = true;
           // persist last psl
           socket.emit('player:psl', { psl: s.psl });
           $('q-psl').textContent = s.psl.toFixed(2);
