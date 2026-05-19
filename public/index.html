@@ -39,7 +39,38 @@
       then ELO is exchanged. No upload. No download. No mercy.
     </p>
 
-    <!-- Stage 1: claim a username (required) -->
+    <!-- Welcome-back card (shown when at least one account is saved locally).
+         Hidden by default; home.js switches between this and the claim card. -->
+    <div id="welcome-card" class="welcome-card" hidden>
+      <div class="welcome-row">
+        <span class="welcome-pfp-wrap">
+          <img id="welcome-pfp" alt="" />
+          <span id="welcome-pfp-initial">?</span>
+        </span>
+        <div class="welcome-meta">
+          <div class="welcome-label">welcome back</div>
+          <h2 id="welcome-handle">—</h2>
+          <div class="welcome-stats">
+            <span id="welcome-tier" class="tier-pill tier-unranked">—</span>
+            <span><b id="welcome-elo">—</b> elo</span>
+            <span><b id="welcome-mogs">—</b> mogs</span>
+          </div>
+        </div>
+      </div>
+      <div class="welcome-actions">
+        <button id="welcome-enter" class="btn primary big">enter the arena →</button>
+        <button id="welcome-friend" class="btn ghost big">play a friend ↗</button>
+      </div>
+      <div class="switcher-toggle">
+        <button id="btn-switch" class="link-btn" type="button">switch / new account ▾</button>
+      </div>
+      <div id="switcher-panel" class="switcher-panel" hidden>
+        <div id="account-list" class="account-list"></div>
+        <button id="btn-new-alt" class="btn ghost" type="button">+ make alt account</button>
+      </div>
+    </div>
+
+    <!-- Claim card (shown for first-time visitors, or after "make alt account") -->
     <div id="claim-card" class="claim-card">
       <div class="claim-head">
         <div class="claim-step">step 1</div>

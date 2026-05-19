@@ -1,10 +1,53 @@
 (() => {
-  const ID_KEY     = 'omoggle_v2_player_id';
-  const HANDLE_KEY = 'omoggle_v2_handle';
-  const AGE_KEY    = 'omoggle_v2_age_ok';
-  const STATS_KEY  = 'omoggle_v2_last_stats';
+  const ID_KEY       = 'omoggle_v2_player_id';
+  const HANDLE_KEY   = 'omoggle_v2_handle';
+  const AGE_KEY      = 'omoggle_v2_age_ok';
+  const STATS_KEY    = 'omoggle_v2_last_stats';
+  const ACCOUNTS_KEY = 'omoggle_v2_accounts';
 
   const $ = (id) => document.getElementById(id);
+
+  // ---------- account storage ----------
+  // Schema: localStorage[ACCOUNTS_KEY] = [{ id, handle, isMain, createdAt }, ...]
+  // The "current" account is the one whose id is in localStorage[ID_KEY].
+  // We migrate any existing single-account install into the accounts list on
+  // first run so returning users don't lose their handle.
+  function loadAccounts() {
+    try {
+      const raw = localStorage.getItem(ACCOUNTS_KEY);
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr)) return arr;
+      }
+    } catch {}
+    const oldId = localStorage.getItem(ID_KEY);
+    const oldHandle = localStorage.getItem(HANDLE_KEY);
+    if (oldId && oldHandle) {
+      const acc = [{ id: oldId, handle: oldHandle, isMain: true, createdAt: Date.now() }];
+      localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(acc));
+      return acc;
+    }
+    return [];
+  }
+  function saveAccounts(list) {
+    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(list));
+  }
+  function setCurrent(id, handle) {
+    localStorage.setItem(ID_KEY, id);
+    localStorage.setItem(HANDLE_KEY, handle);
+  }
+  function addOrUpdateAccount(id, handle) {
+    const list = loadAccounts();
+    const i = list.findIndex(a => a.id === id);
+    if (i >= 0) {
+      list[i].handle = handle;
+    } else {
+      list.push({ id, handle, isMain: list.length === 0, createdAt: Date.now() });
+    }
+    saveAccounts(list);
+    setCurrent(id, handle);
+    return list;
+  }
 
   // ---------- DOM ----------
   const handleEl   = $('handle');
@@ -28,7 +71,7 @@
 
   // ---------- state ----------
   let claimedPlayerId = localStorage.getItem(ID_KEY) || null;
-  let claimedHandle   = null;
+  let claimedHandle   = localStorage.getItem(HANDLE_KEY) || null;
   let availability = { ok: false, value: '' };
   let pendingPfpDataUrl = null;
   let pendingPfpBuf = null;
@@ -179,8 +222,7 @@
     }
     claimedPlayerId = j.playerId;
     claimedHandle = j.handle;
-    localStorage.setItem(ID_KEY, j.playerId);
-    localStorage.setItem(HANDLE_KEY, j.handle);
+    addOrUpdateAccount(j.playerId, j.handle);
     try {
       const cur = JSON.parse(localStorage.getItem(STATS_KEY) || '{}');
       localStorage.setItem(STATS_KEY, JSON.stringify({
@@ -280,6 +322,181 @@
     }
     location.href = '/arena.html?room=' + encodeURIComponent(code);
   });
+
+  // ---------- welcome-back card ----------
+  const welcomeCard   = $('welcome-card');
+  const claimCard     = $('claim-card');
+  const welcomePfp    = $('welcome-pfp');
+  const welcomePfpInit = $('welcome-pfp-initial');
+  const welcomeHandle = $('welcome-handle');
+  const welcomeElo    = $('welcome-elo');
+  const welcomeMogs   = $('welcome-mogs');
+  const welcomeTier   = $('welcome-tier');
+  const welcomeEnter  = $('welcome-enter');
+  const welcomeFriend = $('welcome-friend');
+  const switcherToggle = $('btn-switch');
+  const switcherPanel  = $('switcher-panel');
+  const accountList    = $('account-list');
+  const btnNewAlt      = $('btn-new-alt');
+
+  function showClaim() {
+    welcomeCard.hidden = true;
+    claimCard.hidden = false;
+  }
+  function showWelcome() {
+    claimCard.hidden = true;
+    welcomeCard.hidden = false;
+    switcherPanel.hidden = true;
+  }
+
+  async function paintWelcome(account) {
+    welcomeHandle.textContent = account.handle;
+    welcomePfpInit.textContent = (account.handle[0] || '?').toUpperCase();
+    welcomePfp.removeAttribute('src');
+    welcomePfp.style.display = 'none';
+    welcomePfpInit.style.display = '';
+    // Try loading the pfp; fall back to initial if it 404s.
+    const probe = new Image();
+    probe.onload = () => {
+      welcomePfp.src = probe.src;
+      welcomePfp.style.display = '';
+      welcomePfpInit.style.display = 'none';
+    };
+    probe.src = `/pfp/${encodeURIComponent(account.id)}?t=${Date.now()}`;
+
+    // Fetch fresh stats so the welcome reflects current elo/tier/mogs.
+    try {
+      const r = await fetch(`/api/me/${encodeURIComponent(account.id)}`);
+      if (r.status === 404) {
+        // Server forgot this account (db reset, manual delete) — prune it.
+        const list = loadAccounts().filter(a => a.id !== account.id);
+        saveAccounts(list);
+        if (list.length) {
+          setCurrent(list[0].id, list[0].handle);
+          claimedPlayerId = list[0].id; claimedHandle = list[0].handle;
+          return bootstrapAccountUI();
+        }
+        // no accounts left — drop to claim form
+        localStorage.removeItem(ID_KEY);
+        localStorage.removeItem(HANDLE_KEY);
+        claimedPlayerId = null; claimedHandle = null;
+        showClaim();
+        return;
+      }
+      if (r.ok) {
+        const p = await r.json();
+        welcomeElo.textContent  = p.elo;
+        welcomeMogs.textContent = p.mogs ?? 0;
+        const tier = p.tier || 'unranked';
+        const slug = tier.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z\-]/g, '');
+        welcomeTier.textContent = tier;
+        welcomeTier.className = 'tier-pill tier-' + slug;
+        // mirror into hero stats / stats key
+        $('your-elo').textContent  = p.elo;
+        $('your-mogs').textContent = p.mogs ?? 0;
+        $('your-tier').textContent = tier;
+        try {
+          localStorage.setItem(STATS_KEY, JSON.stringify({
+            elo: p.elo, tier, mogs: p.mogs ?? 0, psl: p.psl ?? null,
+          }));
+        } catch {}
+      }
+    } catch {}
+  }
+
+  function renderSwitcher() {
+    const list = loadAccounts();
+    const curId = localStorage.getItem(ID_KEY);
+    accountList.innerHTML = list.map(a => {
+      const isActive = a.id === curId;
+      const initial = (a.handle[0] || '?').toUpperCase();
+      return `<button class="account-item ${isActive ? 'active' : ''}" data-id="${a.id}" type="button">
+        <span class="account-pfp">
+          <img src="/pfp/${encodeURIComponent(a.id)}" alt="" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+          <span class="account-pfp-fallback">${initial}</span>
+        </span>
+        <span class="account-handle">${escapeHtml(a.handle)}</span>
+        ${a.isMain ? '<span class="account-badge main">main</span>' : '<span class="account-badge alt">alt</span>'}
+        ${isActive ? '<span class="account-badge active-tag">active</span>' : ''}
+      </button>`;
+    }).join('');
+    accountList.querySelectorAll('.account-item').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.id;
+        const acc = list.find(a => a.id === id);
+        if (!acc) return;
+        setCurrent(acc.id, acc.handle);
+        claimedPlayerId = acc.id;
+        claimedHandle = acc.handle;
+        bootstrapAccountUI();
+      });
+    });
+  }
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  switcherToggle?.addEventListener('click', () => {
+    switcherPanel.hidden = !switcherPanel.hidden;
+    if (!switcherPanel.hidden) renderSwitcher();
+  });
+
+  btnNewAlt?.addEventListener('click', () => {
+    // Keep the existing accounts; just route the user through the claim form.
+    // After successful claim, addOrUpdateAccount will push the new one and
+    // mark the user's view back to the welcome card on next entry.
+    claimedPlayerId = null;
+    claimedHandle = null;
+    handleEl.value = '';
+    setStatus('type to check availability', '');
+    availability = { ok: false, value: '' };
+    pendingPfpDataUrl = null;
+    pfpDrop.classList.remove('has-pfp');
+    pfpPreview.removeAttribute('src');
+    showClaim();
+    syncEnter();
+    // scroll into view
+    setTimeout(() => claimCard.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  });
+
+  welcomeEnter?.addEventListener('click', () => {
+    if (!ageOk.checked) {
+      // age check must still be honoured even with a saved account
+      flashWelcome('check the 18+ box first');
+      return;
+    }
+    location.href = '/arena.html';
+  });
+  welcomeFriend?.addEventListener('click', () => {
+    if (!ageOk.checked) { flashWelcome('check the 18+ box first'); return; }
+    friendOverlay.hidden = false;
+    document.body.style.overflow = 'hidden';
+  });
+
+  function flashWelcome(text) {
+    const t = document.createElement('div');
+    t.className = 'welcome-flash';
+    t.textContent = text;
+    welcomeCard.appendChild(t);
+    setTimeout(() => t.remove(), 1800);
+  }
+
+  // Bootstrap: decide whether to show welcome card or claim form.
+  function bootstrapAccountUI() {
+    const list = loadAccounts();
+    if (!list.length) { showClaim(); return; }
+    const curId = localStorage.getItem(ID_KEY);
+    let current = list.find(a => a.id === curId);
+    if (!current) {
+      current = list.find(a => a.isMain) || list[0];
+      setCurrent(current.id, current.handle);
+      claimedPlayerId = current.id;
+      claimedHandle = current.handle;
+    }
+    showWelcome();
+    paintWelcome(current);
+  }
+  bootstrapAccountUI();
 
   // pick up ?room=XYZ on the home URL too — auto-redirect with claim
   const urlParams = new URLSearchParams(location.search);

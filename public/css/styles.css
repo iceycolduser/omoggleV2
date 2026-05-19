@@ -138,6 +138,86 @@ a:hover { color: var(--accent); }
 
 .sub { max-width: 720px; margin: 0 auto; color: var(--muted); font-size: 17px; line-height: 1.6; }
 
+/* welcome-back card */
+.welcome-card {
+  margin: 32px auto 18px; max-width: 560px;
+  background: var(--bg-2); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow);
+  position: relative;
+}
+.welcome-row { display: flex; align-items: center; gap: 18px; margin-bottom: 20px; text-align: left; }
+.welcome-pfp-wrap {
+  position: relative; width: 72px; height: 72px; flex-shrink: 0;
+  border-radius: 50%; overflow: hidden; background: var(--bg-3);
+  border: 2px solid var(--accent); box-shadow: var(--glow-accent);
+}
+.welcome-pfp-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+#welcome-pfp-initial {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 28px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-3)); color: #0a0a12;
+}
+.welcome-meta { flex: 1; min-width: 0; }
+.welcome-label {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  color: var(--muted); text-transform: uppercase; letter-spacing: 0.16em;
+}
+.welcome-meta h2 {
+  margin: 4px 0 6px; font-size: 28px; letter-spacing: -0.02em;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.welcome-stats { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; font-size: 13px; color: var(--muted); }
+.welcome-stats b { color: var(--text); font-family: 'JetBrains Mono', monospace; }
+.welcome-actions { display: flex; flex-direction: column; gap: 8px; }
+.welcome-actions .btn { width: 100%; }
+
+.switcher-toggle { text-align: center; margin-top: 12px; }
+.link-btn {
+  background: none; border: none; cursor: pointer; color: var(--muted);
+  font: inherit; font-size: 13px; padding: 6px 10px;
+}
+.link-btn:hover { color: var(--accent); }
+
+.switcher-panel {
+  margin-top: 10px; padding: 14px; background: var(--bg-3);
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+}
+.account-list { display: flex; flex-direction: column; gap: 6px; max-height: 280px; overflow-y: auto; margin-bottom: 12px; }
+.account-item {
+  display: flex; align-items: center; gap: 10px; padding: 10px;
+  background: var(--bg-2); border: 1px solid var(--line);
+  border-radius: var(--radius-sm); cursor: pointer; font: inherit; color: var(--text);
+  text-align: left; width: 100%;
+}
+.account-item:hover { border-color: var(--accent); }
+.account-item.active { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.account-pfp {
+  position: relative; width: 32px; height: 32px; flex-shrink: 0;
+  border-radius: 50%; overflow: hidden; background: var(--bg-3);
+}
+.account-pfp img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.account-pfp-fallback {
+  position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, var(--accent), var(--accent-3)); color: #0a0a12;
+  font-weight: 700; font-size: 14px;
+}
+.account-handle { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-badge {
+  font-family: 'JetBrains Mono', monospace; font-size: 9px;
+  padding: 2px 6px; border-radius: 999px; border: 1px solid currentColor;
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.account-badge.main { color: var(--accent); }
+.account-badge.alt { color: var(--muted); }
+.account-badge.active-tag { color: var(--accent-3); border-color: var(--accent-3); }
+
+.welcome-flash {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  bottom: -36px; background: var(--danger); color: #fff;
+  padding: 6px 14px; border-radius: 999px; font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
 /* claim card — username + pfp + age */
 .claim-card {
   margin: 32px auto 18px; max-width: 720px;
@@ -709,14 +789,32 @@ a:hover { color: var(--accent); }
   .psl-tag { padding: 4px 8px; bottom: 8px; left: 8px; }
   .psl-tag b { font-size: 16px; }
 
+  /* fix: HUD + queue stats overflowed off the right edge on mobile because
+     they were 1-line flex rows that wouldn't wrap. */
+  .topbar.slim { flex-wrap: wrap; gap: 8px; padding: 8px 12px; }
+  .hud { flex-wrap: wrap; gap: 6px; justify-content: flex-end; min-width: 0; flex: 1; }
+  .hud-cell { padding: 4px 8px; min-width: 0; }
+  .hud-cell b { font-size: 12px; }
+  .hud-cell.hud-pfp { width: 30px; height: 30px; }
+  .hud-cell.hud-pfp img { width: 30px; height: 30px; }
+  .topnav { gap: 14px; font-size: 13px; }
+
+  .queue-wrap { padding: 28px 14px 16px; }
+  .queue-wrap h2 { font-size: 26px; }
+  .pulse { width: 80px; height: 80px; margin-bottom: 18px; }
+  .pulse::after { inset: 22px; }
+  .queue-stats {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    width: 100%; max-width: 380px; margin: 22px 0;
+  }
+  .queue-stats > div { padding: 10px 12px; min-width: 0; }
+  .queue-stats b { font-size: 18px; }
+
   .board-head, .board-row {
     grid-template-columns: 40px 1fr 70px 60px 80px 60px;
     font-size: 12px; padding: 10px 12px;
   }
   .result-numbers { grid-template-columns: repeat(2, 1fr); }
-  .hud-cell { padding: 4px 8px; min-width: 52px; }
-  .hud-cell b { font-size: 12px; }
-  .topnav { gap: 14px; font-size: 13px; }
 }
 @media (max-width: 580px) {
   .enter { flex-direction: column; border-radius: var(--radius); }
