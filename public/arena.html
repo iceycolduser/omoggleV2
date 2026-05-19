@@ -90,10 +90,6 @@
         <div class="timer" id="battle-timer">15</div>
         <div class="vs-label">vs</div>
         <div class="round-badge">round 1</div>
-        <div class="merge-preview">
-          <div class="merge-label">live merge</div>
-          <canvas id="merge-canvas-battle" width="220" height="220"></canvas>
-        </div>
         <div class="battle-actions">
           <button id="btn-skip" class="btn ghost sm">skip</button>
           <button id="btn-report" class="btn danger sm">report</button>
@@ -117,6 +113,12 @@
       </div>
     </div>
   </section>
+
+  <!-- Off-screen scratch canvas. The face merger renders here every frame
+       during battle so the result screen can blit the final composite onto
+       its visible canvas without re-running detection. -->
+  <canvas id="merge-canvas-battle" width="480" height="480" aria-hidden="true"
+          style="position:absolute;left:-9999px;top:-9999px;pointer-events:none;"></canvas>
 
   <!-- Stage 4: result -->
   <section id="stage-result" class="stage">

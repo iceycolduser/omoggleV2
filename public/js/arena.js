@@ -270,7 +270,7 @@
         oppVideo: document.getElementById('opp-video'),
         getMeDetection:  () => analyzer?.latestDetection(),
         getOppDetection: () => oppAnalyzer?.latestDetection(),
-        width: 220, height: 220,
+        width: 480, height: 480,
       });
       merger.start();
     }
