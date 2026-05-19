@@ -413,6 +413,7 @@
   // Bootstrap: an account in storage → ready card. Otherwise → claim card.
   function bootstrapAccountUI() {
     const list = loadAccounts();
+    console.log('[omoggle/home] bootstrap — accounts in storage:', list.length);
     if (!list.length) { showClaim(); return; }
     const curId = localStorage.getItem(ID_KEY);
     let current = list.find(a => a.id === curId);
@@ -422,6 +423,7 @@
       claimedPlayerId = current.id;
       claimedHandle   = current.handle;
     }
+    console.log('[omoggle/home] auto-loading account:', current.handle, current.id);
     showReady();
     paintReady(current);
   }

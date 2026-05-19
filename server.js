@@ -215,7 +215,20 @@ const apiLimiter = rateLimit({ windowMs: 60_000, max: 120, standardHeaders: true
 const claimLimiter = rateLimit({ windowMs: 60_000, max: 10, standardHeaders: true, legacyHeaders: false });
 app.use('/api/', apiLimiter);
 
-app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1h', etag: true }));
+// HTML / JS / CSS revalidate on every request via ETag, so a fresh deploy
+// reaches phones immediately instead of being shadowed by a stale cache for
+// up to an hour. Static images/fonts can still cache normally.
+app.use(express.static(path.join(__dirname, 'public'), {
+  etag: true,
+  lastModified: true,
+  setHeaders: (res, p) => {
+    if (/\.(html?|js|css)$/i.test(p)) {
+      res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+    } else {
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+    }
+  },
+}));
 
 app.get('/api/health', (_req, res) => res.json({ ok: true, uptime: process.uptime() }));
 
