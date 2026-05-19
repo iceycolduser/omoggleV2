@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="/css/styles.css" />
+<link rel="stylesheet" href="/css/styles.css?v=4" />
 </head>
 <body class="page-arena">
 
@@ -17,8 +17,9 @@
     <span class="brand-mark">o</span>moggle<span class="brand-v">v2</span>
   </a>
   <div class="hud">
+    <span class="hud-cell hud-pfp"><img id="hud-pfp-img" alt="" /></span>
     <span class="hud-cell"><b id="hud-handle">—</b><i>handle</i></span>
-    <span class="hud-cell"><b id="hud-elo">1000</b><i>elo</i></span>
+    <span class="hud-cell"><b id="hud-elo">1000</b><i id="hud-tier">unranked</i></span>
     <span class="hud-cell"><b id="hud-mogs">0</b><i>mogs</i></span>
     <a class="hud-cell hud-link" href="/leaderboard.html">board ↗</a>
   </div>
@@ -41,6 +42,7 @@
         <div class="bar"><span>models</span><div class="bar-track"><div id="bar-models" class="bar-fill"></div></div><span id="bar-models-pct">0%</span></div>
         <div class="bar"><span>camera</span><div class="bar-track"><div id="bar-cam" class="bar-fill"></div></div><span id="bar-cam-pct">0%</span></div>
         <div class="bar"><span>face lock</span><div class="bar-track"><div id="bar-face" class="bar-fill"></div></div><span id="bar-face-pct">0%</span></div>
+        <div class="bar"><span>safety</span><div class="bar-track"><div id="bar-safe" class="bar-fill"></div></div><span id="bar-safe-pct">—</span></div>
         <div class="psl-readout">
           <div class="psl-big" id="cal-psl">—</div>
           <div class="psl-axes" id="cal-axes"></div>
@@ -55,11 +57,24 @@
   <section id="stage-queue" class="stage">
     <div class="queue-wrap">
       <div class="pulse"></div>
-      <h2>searching for opponent</h2>
-      <p class="muted">elo-banded matchmaking · avg wait &lt; 8s</p>
+      <h2 id="queue-title">searching for opponent</h2>
+      <p class="muted" id="queue-sub">elo-banded matchmaking · avg wait &lt; 8s</p>
+
+      <div id="host-card" class="host-card" hidden>
+        <div class="muted">share this code with your friend</div>
+        <div class="room-code" id="room-code">——————</div>
+        <div class="room-actions">
+          <button id="btn-copy-link" class="btn ghost sm">copy invite link</button>
+          <button id="btn-copy-code" class="btn ghost sm">copy code</button>
+          <span id="copy-toast" class="copy-toast" hidden>copied ✓</span>
+        </div>
+        <p class="hint">private match — does not affect rank. expires in 5 minutes.</p>
+      </div>
+
       <div class="queue-stats">
         <div><b id="q-online">—</b><span>online</span></div>
         <div><b id="q-elo">1000</b><span>your elo</span></div>
+        <div><b id="q-tier">—</b><span>tier</span></div>
         <div><b id="q-psl">—</b><span>your psl</span></div>
       </div>
       <button id="btn-cancel-queue" class="btn ghost">cancel</button>
@@ -68,6 +83,7 @@
 
   <!-- Stage 3: battle -->
   <section id="stage-battle" class="stage">
+    <div id="mode-banner" class="mode-banner ranked">ranked match</div>
     <div class="battle-grid">
       <div class="seat me">
         <div class="seat-tag"><b id="me-handle">you</b><span id="me-elo">1000</span></div>
@@ -75,6 +91,12 @@
           <video id="me-video" playsinline autoplay muted></video>
           <canvas id="me-overlay"></canvas>
           <div class="psl-tag"><span>psl</span><b id="me-psl">—</b></div>
+          <div id="me-safety" class="safety-veil hide">
+            <div class="safety-msg">
+              <b>safety filter triggered</b>
+              <span>your camera contains content flagged as inappropriate.<br>fix the framing or end the round.</span>
+            </div>
+          </div>
         </div>
         <div class="axes" id="me-axes"></div>
       </div>
@@ -95,11 +117,23 @@
           <video id="opp-video" playsinline autoplay></video>
           <div class="psl-tag"><span>psl</span><b id="opp-psl">—</b></div>
           <div id="opp-waiting" class="opp-waiting">waiting for video…</div>
+          <div id="opp-safety" class="safety-veil hide">
+            <div class="safety-msg">
+              <b>opponent flagged</b>
+              <span>their feed contains content classified as inappropriate.<br>auto-reporting and ending round.</span>
+            </div>
+          </div>
         </div>
         <div class="axes" id="opp-axes"></div>
       </div>
     </div>
   </section>
+
+  <!-- Off-screen scratch canvas. The face merger renders here every frame
+       during battle so the result screen can blit the final composite onto
+       its visible canvas without re-running detection. -->
+  <canvas id="merge-canvas-battle" width="480" height="480" aria-hidden="true"
+          style="position:absolute;left:-9999px;top:-9999px;pointer-events:none;"></canvas>
 
   <!-- Stage 4: result -->
   <section id="stage-result" class="stage">
@@ -119,8 +153,13 @@
           <span>new elo</span><b id="r-elo">—</b>
         </div>
       </div>
+      <div class="merge-final">
+        <div class="merge-final-label">merged face</div>
+        <canvas id="merge-canvas-result" width="480" height="480"></canvas>
+      </div>
       <div class="result-actions">
         <button id="btn-rematch" class="btn primary">queue again →</button>
+        <button id="btn-save-merge" class="btn ghost">save merge ↓</button>
         <a href="/leaderboard.html" class="btn ghost">view board</a>
       </div>
     </div>
@@ -128,9 +167,13 @@
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/nsfwjs@4.2.1/dist/nsfwjs.min.js" defer></script>
 <script src="/socket.io/socket.io.js" defer></script>
-<script src="/js/face-analyzer.js" defer></script>
-<script src="/js/webrtc-client.js" defer></script>
-<script src="/js/arena.js" defer></script>
+<script src="/js/face-analyzer.js?v=4" defer></script>
+<script src="/js/face-merge.js?v=4" defer></script>
+<script src="/js/safety-vision.js?v=4" defer></script>
+<script src="/js/webrtc-client.js?v=4" defer></script>
+<script src="/js/arena.js?v=4" defer></script>
 </body>
 </html>

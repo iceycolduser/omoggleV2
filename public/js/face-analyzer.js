@@ -235,13 +235,16 @@ window.OmoggleFace = (() => {
       lastDetection: null,
       skinCanvas: document.createElement('canvas'),
     };
-    const detectorOpts = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.4 });
+    const detectorOpts = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.3 });
 
     async function tick() {
       if (!state.running) return;
       try {
         if (video.readyState >= 2 && video.videoWidth > 0) {
-          const det = await faceapi.detectSingleFace(video, detectorOpts).withFaceLandmarks(true);
+          // withFaceLandmarks() — no arg — uses faceLandmark68Net, which is
+          // what loadModels() loaded above. Passing `true` would request the
+          // tiny variant that we don't ship.
+          const det = await faceapi.detectSingleFace(video, detectorOpts).withFaceLandmarks();
           if (overlay) {
             const w = overlay.width = video.clientWidth;
             const h = overlay.height = video.clientHeight;
@@ -275,7 +278,11 @@ window.OmoggleFace = (() => {
           }
         }
       } catch (e) {
-        // swallow per-frame errors; keep running
+        // log once per session so a misconfigured model surfaces in devtools
+        if (!state.errorLogged) {
+          state.errorLogged = true;
+          console.error('[omoggle/face] detection failed:', e);
+        }
       }
       if (state.running) requestAnimationFrame(tick);
     }
@@ -284,6 +291,7 @@ window.OmoggleFace = (() => {
       start() { if (!state.running) { state.running = true; tick(); } },
       stop() { state.running = false; },
       latest() { return state.smoothed; },
+      latestDetection() { return state.lastDetection; },
     };
   }
 

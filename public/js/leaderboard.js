@@ -14,9 +14,13 @@
       const psl = p.psl != null ? Number(p.psl).toFixed(2) : '—';
       const wld = `${p.wins ?? 0}/${p.losses ?? 0}/${p.draws ?? 0}`;
       const handle = escapeHtml(p.handle || 'anon');
+      const tierName = p.tier || 'unranked';
+      const tierSlug = tierName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z\-]/g, '');
+      const tierDisplay = escapeHtml(tierName);
+      const pfp    = p.has_pfp ? `<img class="board-pfp" src="/pfp/${encodeURIComponent(p.id)}" alt="" loading="lazy" />` : `<span class="board-pfp ph">${handle[0]?.toUpperCase() || '?'}</span>`;
       return `<div class="board-row">
         <span class="rank ${cls}">#${rk}</span>
-        <span class="handle">${handle}</span>
+        <span class="handle">${pfp}<span class="handle-text">${handle}</span><span class="tier-pill tier-${tierSlug}">${tierDisplay}</span></span>
         <span class="elo">${p.elo}</span>
         <span class="psl">${psl}</span>
         <span class="wld">${wld}</span>
