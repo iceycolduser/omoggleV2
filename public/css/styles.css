@@ -676,12 +676,13 @@ a:hover { color: var(--accent); }
   .features { grid-template-columns: repeat(2, 1fr); }
   .cal-wrap { grid-template-columns: 1fr; }
 
-  /* Battle layout on mobile: stack vertically, keep each cam frame at the
-     normal 4:3 horizontal aspect (the camera streams landscape — letting
-     the frame go portrait turned video into a tall slice of forehead).
-     Two 4:3 frames at full width + a compact VS strip fit comfortably on
-     a portrait phone without scroll. */
+  /* Portrait phones: force a 16:9 landscape camera frame everywhere
+     (calibrate + battle). Phones hold their camera stream landscape
+     anyway; matching the frame to that gives a wide, horizontal box
+     instead of a near-square. Two 16:9 frames + a compact VS strip
+     fit on a portrait screen with room to spare. */
   .arena { padding: 10px; }
+  .cam-frame { aspect-ratio: 16 / 9; }
   .battle-grid {
     grid-template-columns: 1fr;
     grid-template-rows: auto auto auto;
@@ -690,7 +691,7 @@ a:hover { color: var(--accent); }
   .seat { gap: 4px; }
   .seat .cam-frame {
     width: 100%;
-    aspect-ratio: 4 / 3;
+    aspect-ratio: 16 / 9;
     height: auto;
   }
   .axes { display: none; }            /* free up the vertical budget */
