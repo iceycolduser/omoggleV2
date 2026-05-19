@@ -107,12 +107,18 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https://cdn.jsdelivr.net'],
       styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       fontSrc: ["'self'", 'https://fonts.gstatic.com'],
-      imgSrc: ["'self'", 'data:', 'blob:'],
+      imgSrc: ["'self'", 'data:', 'blob:', 'https://cdn.jsdelivr.net'],
       mediaSrc: ["'self'", 'blob:'],
-      connectSrc: ["'self'", 'wss:', 'ws:', 'https://cdn.jsdelivr.net', 'https://justadudewhohacks.github.io'],
+      connectSrc: [
+        "'self'", 'wss:', 'ws:',
+        'https://cdn.jsdelivr.net',
+        'https://justadudewhohacks.github.io',
+        'https://model.nsfwjs.com',
+        'https://nsfwjs.com',
+      ],
       workerSrc: ["'self'", 'blob:'],
       objectSrc: ["'none'"],
     },
@@ -154,27 +160,65 @@ const io = new Server(server, {
   pingTimeout: 20_000,
 });
 
+// queue entries: { id: socketId, elo, joinedAt }
+// pairing: oldest waiter is paired with the closest-elo partner inside a
+// band that widens with their wait time. fairer than FIFO and the wait cap
+// keeps the queue from stalling on a single outlier rating.
 const queue = [];
 const sockets = new Map();
+const PAIR_BAND_START = 80;      // ±elo at t=0
+const PAIR_BAND_GROW  = 60;      // ±elo gained per second of waiting
+const PAIR_BAND_MAX   = 1200;    // hard cap (eventually anyone is fine)
+let   pairTimer = null;          // periodic sweep to widen bands
 
 function eloDelta(rA, rB, score, k = 32) {
   const expected = 1 / (1 + Math.pow(10, (rB - rA) / 400));
   return Math.round(k * (score - expected));
 }
 
+function bandFor(entry, now) {
+  const waited = Math.max(0, (now - entry.joinedAt) / 1000);
+  return Math.min(PAIR_BAND_MAX, PAIR_BAND_START + waited * PAIR_BAND_GROW);
+}
+
 function pairFromQueue() {
-  while (queue.length >= 2) {
-    const a = queue.shift();
-    const b = queue.shift();
-    const sa = sockets.get(a);
-    const sb = sockets.get(b);
-    if (!sa || !sb) {
-      if (sa) queue.unshift(a);
-      if (sb) queue.unshift(b);
-      return;
-    }
-    startMatch(sa, sb);
+  const now = Date.now();
+  // drop disconnected sockets
+  for (let i = queue.length - 1; i >= 0; i--) {
+    if (!sockets.get(queue[i].id)) queue.splice(i, 1);
   }
+  // greedy: walk from oldest waiter, find closest-elo partner inside band.
+  for (let i = 0; i < queue.length; i++) {
+    const a = queue[i];
+    const band = bandFor(a, now);
+    let bestJ = -1, bestDiff = Infinity;
+    for (let j = i + 1; j < queue.length; j++) {
+      const b = queue[j];
+      const diff = Math.abs(a.elo - b.elo);
+      if (diff <= band && diff < bestDiff) {
+        bestDiff = diff; bestJ = j;
+        if (diff === 0) break;
+      }
+    }
+    if (bestJ !== -1) {
+      const b = queue[bestJ];
+      // remove higher index first so the other index stays valid
+      queue.splice(bestJ, 1);
+      queue.splice(i, 1);
+      const sa = sockets.get(a.id);
+      const sb = sockets.get(b.id);
+      if (sa && sb) startMatch(sa, sb);
+      i = -1; // restart from start since indices shifted
+    }
+  }
+}
+
+function startPairTimer() {
+  if (pairTimer) return;
+  pairTimer = setInterval(() => {
+    if (queue.length >= 2) pairFromQueue();
+    if (queue.length === 0) { clearInterval(pairTimer); pairTimer = null; }
+  }, 1000);
 }
 
 function startMatch(sa, sb) {
@@ -309,14 +353,15 @@ io.on('connection', (socket) => {
   socket.on('queue:join', () => {
     if (!socket.data.playerId) return;
     if (socket.data.matchId) return;
-    if (queue.includes(socket.id)) return;
-    queue.push(socket.id);
+    if (queue.some(e => e.id === socket.id)) return;
+    queue.push({ id: socket.id, elo: socket.data.elo, joinedAt: Date.now() });
     socket.emit('queue:joined', { position: queue.length });
     pairFromQueue();
+    startPairTimer();
   });
 
   socket.on('queue:leave', () => {
-    const i = queue.indexOf(socket.id);
+    const i = queue.findIndex(e => e.id === socket.id);
     if (i >= 0) queue.splice(i, 1);
     socket.emit('queue:left');
   });
@@ -395,7 +440,7 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     sockets.delete(socket.id);
-    const i = queue.indexOf(socket.id);
+    const i = queue.findIndex(e => e.id === socket.id);
     if (i >= 0) queue.splice(i, 1);
     const oppId = socket.data.opponent;
     const matchId = socket.data.matchId;

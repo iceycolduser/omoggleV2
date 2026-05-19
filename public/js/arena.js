@@ -24,6 +24,10 @@
   let oppAnalyzer = null;
   let stream = null;
   let peer = null;
+  let calSafety = null;
+  let meSafety = null;
+  let oppSafety = null;
+  let safetyBlocked = false;     // calibration: queue locked until camera is clean
 
   function setBar(id, pct) {
     const fill = document.getElementById('bar-' + id);
@@ -152,7 +156,54 @@
     });
     analyzer.start();
 
+    // ---- safety scanner (NSFW) on the local feed during calibration ----
+    // Loads nsfwjs in the background; the camera works without it but the
+    // queue button stays locked until we have at least one clean reading.
+    const safeFill = document.getElementById('bar-safe');
+    const safePct  = document.getElementById('bar-safe-pct');
+    let safeReady = false;
+    (async () => {
+      try {
+        await OmoggleSafety.loadModel();
+        safeReady = true;
+        if (safeFill) safeFill.style.width = '100%';
+        if (safePct)  safePct.textContent = 'ok';
+      } catch {
+        // If the safety model fails to load (network/CDN issue), fail-open:
+        // we don't block the queue, but we mark the bar so the operator sees it.
+        if (safeFill) safeFill.style.background = 'var(--warn)';
+        if (safePct)  safePct.textContent = 'off';
+      }
+    })();
+    calSafety = OmoggleSafety.create({
+      video: $('cal-video'),
+      onFlag: ({ score }) => {
+        safetyBlocked = true;
+        $('btn-queue').disabled = true;
+        const h = $('cal-hint');
+        h.textContent = 'safety filter triggered — adjust framing (no exposed skin / underwear / explicit content)';
+        h.classList.add('bad');
+        if (safeFill) { safeFill.style.background = 'var(--danger)'; safeFill.style.width = '100%'; }
+        if (safePct)  safePct.textContent = 'flag';
+      },
+      onClear: () => {
+        safetyBlocked = false;
+        const h = $('cal-hint');
+        h.textContent = 'looks clean — when face-lock hits 100%, you can queue.';
+        h.classList.remove('bad');
+        if (safeFill) { safeFill.style.background = ''; safeFill.style.width = '100%'; }
+        if (safePct)  safePct.textContent = 'ok';
+      },
+    });
+    calSafety.start();
+
     $('btn-queue').addEventListener('click', () => {
+      if (safetyBlocked) return;
+      if (!safeReady) {
+        // Model still loading — let them queue anyway; battle stage has its
+        // own scanner that will catch anything once the model is up.
+      }
+      calSafety?.stop();
       setStage('queue');
       socket.emit('queue:join');
     });
@@ -208,6 +259,21 @@
     });
     analyzer.start();
 
+    // safety scanner on own feed — auto-concede if NSFW is detected
+    meSafety?.stop();
+    meSafety = OmoggleSafety.create({
+      video: me,
+      onFlag: () => {
+        if (!battleActive) return;
+        $('me-safety').classList.remove('hide');
+        flash('your feed was flagged — round forfeited');
+        battleActive = false;
+        socket.emit('match:concede');
+      },
+      onClear: () => $('me-safety').classList.add('hide'),
+    });
+    meSafety.start();
+
     // setup peer
     peer = OmoggleRTC.createPeer({
       socket,
@@ -229,6 +295,21 @@
           },
         });
         oppAnalyzer.start();
+
+        // safety scanner on opponent feed — auto-report + end round on NSFW
+        oppSafety?.stop();
+        oppSafety = OmoggleSafety.create({
+          video: v,
+          onFlag: () => {
+            if (!battleActive) return;
+            $('opp-safety').classList.remove('hide');
+            flash('opponent flagged — auto-reporting');
+            battleActive = false;
+            socket.emit('match:report', { reason: 'auto:nsfw' });
+          },
+          onClear: () => $('opp-safety').classList.add('hide'),
+        });
+        oppSafety.start();
       },
       onClose: () => flash('connection lost'),
     });
@@ -270,6 +351,10 @@
     clearInterval(battleTimer);
     peer?.close(); peer = null;
     oppAnalyzer?.stop(); oppAnalyzer = null;
+    meSafety?.stop();    meSafety = null;
+    oppSafety?.stop();   oppSafety = null;
+    $('me-safety')?.classList.add('hide');
+    $('opp-safety')?.classList.add('hide');
 
     const banner = $('result-banner');
     if (draw) { banner.textContent = 'a draw.'; banner.className = 'result-banner draw'; }
@@ -324,7 +409,11 @@
   }
 
   window.addEventListener('beforeunload', () => {
-    try { socket?.disconnect(); peer?.close(); analyzer?.stop(); oppAnalyzer?.stop(); } catch {}
+    try {
+      socket?.disconnect(); peer?.close();
+      analyzer?.stop(); oppAnalyzer?.stop();
+      calSafety?.stop(); meSafety?.stop(); oppSafety?.stop();
+    } catch {}
     try { stream?.getTracks().forEach(t => t.stop()); } catch {}
   });
 

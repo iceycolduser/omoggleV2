@@ -41,6 +41,7 @@
         <div class="bar"><span>models</span><div class="bar-track"><div id="bar-models" class="bar-fill"></div></div><span id="bar-models-pct">0%</span></div>
         <div class="bar"><span>camera</span><div class="bar-track"><div id="bar-cam" class="bar-fill"></div></div><span id="bar-cam-pct">0%</span></div>
         <div class="bar"><span>face lock</span><div class="bar-track"><div id="bar-face" class="bar-fill"></div></div><span id="bar-face-pct">0%</span></div>
+        <div class="bar"><span>safety</span><div class="bar-track"><div id="bar-safe" class="bar-fill"></div></div><span id="bar-safe-pct">—</span></div>
         <div class="psl-readout">
           <div class="psl-big" id="cal-psl">—</div>
           <div class="psl-axes" id="cal-axes"></div>
@@ -75,6 +76,12 @@
           <video id="me-video" playsinline autoplay muted></video>
           <canvas id="me-overlay"></canvas>
           <div class="psl-tag"><span>psl</span><b id="me-psl">—</b></div>
+          <div id="me-safety" class="safety-veil hide">
+            <div class="safety-msg">
+              <b>safety filter triggered</b>
+              <span>your camera contains content flagged as inappropriate.<br>fix the framing or end the round.</span>
+            </div>
+          </div>
         </div>
         <div class="axes" id="me-axes"></div>
       </div>
@@ -95,6 +102,12 @@
           <video id="opp-video" playsinline autoplay></video>
           <div class="psl-tag"><span>psl</span><b id="opp-psl">—</b></div>
           <div id="opp-waiting" class="opp-waiting">waiting for video…</div>
+          <div id="opp-safety" class="safety-veil hide">
+            <div class="safety-msg">
+              <b>opponent flagged</b>
+              <span>their feed contains content classified as inappropriate.<br>auto-reporting and ending round.</span>
+            </div>
+          </div>
         </div>
         <div class="axes" id="opp-axes"></div>
       </div>
@@ -128,8 +141,11 @@
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/nsfwjs@4.2.1/dist/nsfwjs.min.js" defer></script>
 <script src="/socket.io/socket.io.js" defer></script>
 <script src="/js/face-analyzer.js" defer></script>
+<script src="/js/safety-vision.js" defer></script>
 <script src="/js/webrtc-client.js" defer></script>
 <script src="/js/arena.js" defer></script>
 </body>
