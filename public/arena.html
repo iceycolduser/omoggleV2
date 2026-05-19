@@ -90,6 +90,10 @@
         <div class="timer" id="battle-timer">15</div>
         <div class="vs-label">vs</div>
         <div class="round-badge">round 1</div>
+        <div class="merge-preview">
+          <div class="merge-label">live merge</div>
+          <canvas id="merge-canvas-battle" width="220" height="220"></canvas>
+        </div>
         <div class="battle-actions">
           <button id="btn-skip" class="btn ghost sm">skip</button>
           <button id="btn-report" class="btn danger sm">report</button>
@@ -132,8 +136,13 @@
           <span>new elo</span><b id="r-elo">—</b>
         </div>
       </div>
+      <div class="merge-final">
+        <div class="merge-final-label">merged face</div>
+        <canvas id="merge-canvas-result" width="480" height="480"></canvas>
+      </div>
       <div class="result-actions">
         <button id="btn-rematch" class="btn primary">queue again →</button>
+        <button id="btn-save-merge" class="btn ghost">save merge ↓</button>
         <a href="/leaderboard.html" class="btn ghost">view board</a>
       </div>
     </div>
@@ -145,6 +154,7 @@
 <script src="https://cdn.jsdelivr.net/npm/nsfwjs@4.2.1/dist/nsfwjs.min.js" defer></script>
 <script src="/socket.io/socket.io.js" defer></script>
 <script src="/js/face-analyzer.js" defer></script>
+<script src="/js/face-merge.js" defer></script>
 <script src="/js/safety-vision.js" defer></script>
 <script src="/js/webrtc-client.js" defer></script>
 <script src="/js/arena.js" defer></script>

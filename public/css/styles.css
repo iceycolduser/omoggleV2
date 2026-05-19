@@ -397,6 +397,41 @@ a:hover { color: var(--accent); }
 /* nsfw-blocked queue button hint */
 .cal-hint.bad { color: var(--danger); }
 
+/* live face-merge — battle preview + result hero */
+.merge-preview {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 6px; padding: 8px;
+  background: var(--bg-2); border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+.merge-preview canvas {
+  width: 200px; height: 200px;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 0 0 1px var(--line);
+  background: #0a0a12;
+}
+.merge-label, .merge-final-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.16em;
+}
+.merge-final {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 12px; margin: 8px 0 28px;
+}
+.merge-final canvas {
+  width: min(420px, 80vw);
+  aspect-ratio: 1 / 1; height: auto;
+  border-radius: var(--radius);
+  border: 1px solid var(--accent);
+  box-shadow: var(--glow-accent);
+  background: #0a0a12;
+}
+
+@media (max-width: 980px) {
+  .merge-preview canvas { width: 140px; height: 140px; }
+}
+
 .axes { background: var(--bg-2); border: 1px solid var(--line); padding: 14px; border-radius: var(--radius-sm); display: grid; gap: 6px; }
 
 .vs {

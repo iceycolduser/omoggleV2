@@ -28,6 +28,7 @@
   let meSafety = null;
   let oppSafety = null;
   let safetyBlocked = false;     // calibration: queue locked until camera is clean
+  let merger = null;             // live half-and-half face merger
 
   function setBar(id, pct) {
     const fill = document.getElementById('bar-' + id);
@@ -259,6 +260,21 @@
     });
     analyzer.start();
 
+    // live half-and-half face merger — left side = me, right side = opponent
+    merger?.stop();
+    const battleMerge = document.getElementById('merge-canvas-battle');
+    if (battleMerge) {
+      merger = OmoggleMerge.createMerger({
+        canvas: battleMerge,
+        meVideo: me,
+        oppVideo: document.getElementById('opp-video'),
+        getMeDetection:  () => analyzer?.latestDetection(),
+        getOppDetection: () => oppAnalyzer?.latestDetection(),
+        width: 220, height: 220,
+      });
+      merger.start();
+    }
+
     // safety scanner on own feed — auto-concede if NSFW is detected
     meSafety?.stop();
     meSafety = OmoggleSafety.create({
@@ -349,6 +365,18 @@
 
   function onMatchResult({ youWon, draw, opponentPsl, yourPsl, eloDelta, newElo, opponentEloDelta }) {
     clearInterval(battleTimer);
+
+    // Snapshot the live merge before tearing down the analyzers so the
+    // result canvas keeps showing both faces at the final moment.
+    const finalMergeCanvas = $('merge-canvas-result');
+    const sourceMerge      = $('merge-canvas-battle');
+    if (finalMergeCanvas && sourceMerge) {
+      const fctx = finalMergeCanvas.getContext('2d');
+      fctx.clearRect(0, 0, finalMergeCanvas.width, finalMergeCanvas.height);
+      fctx.drawImage(sourceMerge, 0, 0, finalMergeCanvas.width, finalMergeCanvas.height);
+    }
+    merger?.stop(); merger = null;
+
     peer?.close(); peer = null;
     oppAnalyzer?.stop(); oppAnalyzer = null;
     meSafety?.stop();    meSafety = null;
@@ -397,6 +425,17 @@
     setStage('queue');
     socket.emit('queue:join');
   });
+  $('btn-save-merge')?.addEventListener('click', () => {
+    const c = $('merge-canvas-result');
+    if (!c) return;
+    const url = c.toDataURL('image/png');
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `omoggle-merge-${Date.now()}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  });
 
   // ---------- util ----------
   function flash(text) {
@@ -413,6 +452,7 @@
       socket?.disconnect(); peer?.close();
       analyzer?.stop(); oppAnalyzer?.stop();
       calSafety?.stop(); meSafety?.stop(); oppSafety?.stop();
+      merger?.stop();
     } catch {}
     try { stream?.getTracks().forEach(t => t.stop()); } catch {}
   });

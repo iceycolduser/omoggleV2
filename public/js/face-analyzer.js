@@ -291,6 +291,7 @@ window.OmoggleFace = (() => {
       start() { if (!state.running) { state.running = true; tick(); } },
       stop() { state.running = false; },
       latest() { return state.smoothed; },
+      latestDetection() { return state.lastDetection; },
     };
   }
 
