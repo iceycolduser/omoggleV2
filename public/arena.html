@@ -17,8 +17,9 @@
     <span class="brand-mark">o</span>moggle<span class="brand-v">v2</span>
   </a>
   <div class="hud">
+    <span class="hud-cell hud-pfp"><img id="hud-pfp-img" alt="" /></span>
     <span class="hud-cell"><b id="hud-handle">—</b><i>handle</i></span>
-    <span class="hud-cell"><b id="hud-elo">1000</b><i>elo</i></span>
+    <span class="hud-cell"><b id="hud-elo">1000</b><i id="hud-tier">unranked</i></span>
     <span class="hud-cell"><b id="hud-mogs">0</b><i>mogs</i></span>
     <a class="hud-cell hud-link" href="/leaderboard.html">board ↗</a>
   </div>
@@ -56,11 +57,24 @@
   <section id="stage-queue" class="stage">
     <div class="queue-wrap">
       <div class="pulse"></div>
-      <h2>searching for opponent</h2>
-      <p class="muted">elo-banded matchmaking · avg wait &lt; 8s</p>
+      <h2 id="queue-title">searching for opponent</h2>
+      <p class="muted" id="queue-sub">elo-banded matchmaking · avg wait &lt; 8s</p>
+
+      <div id="host-card" class="host-card" hidden>
+        <div class="muted">share this code with your friend</div>
+        <div class="room-code" id="room-code">——————</div>
+        <div class="room-actions">
+          <button id="btn-copy-link" class="btn ghost sm">copy invite link</button>
+          <button id="btn-copy-code" class="btn ghost sm">copy code</button>
+          <span id="copy-toast" class="copy-toast" hidden>copied ✓</span>
+        </div>
+        <p class="hint">private match — does not affect rank. expires in 5 minutes.</p>
+      </div>
+
       <div class="queue-stats">
         <div><b id="q-online">—</b><span>online</span></div>
         <div><b id="q-elo">1000</b><span>your elo</span></div>
+        <div><b id="q-tier">—</b><span>tier</span></div>
         <div><b id="q-psl">—</b><span>your psl</span></div>
       </div>
       <button id="btn-cancel-queue" class="btn ghost">cancel</button>
@@ -69,6 +83,7 @@
 
   <!-- Stage 3: battle -->
   <section id="stage-battle" class="stage">
+    <div id="mode-banner" class="mode-banner ranked">ranked match</div>
     <div class="battle-grid">
       <div class="seat me">
         <div class="seat-tag"><b id="me-handle">you</b><span id="me-elo">1000</span></div>

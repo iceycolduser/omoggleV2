@@ -39,22 +39,67 @@
       then ELO is exchanged. No upload. No download. No mercy.
     </p>
 
-    <form id="enter-form" class="enter" autocomplete="off">
-      <label class="field">
-        <span>handle</span>
-        <input id="handle" type="text" maxlength="20" placeholder="anon" inputmode="text" />
-      </label>
-      <button type="submit" id="enter-btn" class="btn primary">enter the arena →</button>
-    </form>
+    <!-- Stage 1: claim a username (required) -->
+    <div id="claim-card" class="claim-card">
+      <div class="claim-head">
+        <div class="claim-step">step 1</div>
+        <h2>pick your handle</h2>
+        <p>3–20 chars, letters/numbers/_- only. it's yours forever — chosen names go on the leaderboard.</p>
+      </div>
 
-    <label class="age-check">
-      <input id="age-ok" type="checkbox" />
-      I am 18+ and consent to live webcam matchmaking with strangers.
-    </label>
+      <div class="pfp-row">
+        <label class="pfp-drop" id="pfp-drop">
+          <input id="pfp-input" type="file" accept="image/*" hidden />
+          <img id="pfp-preview" alt="" />
+          <div class="pfp-placeholder">
+            <div class="pfp-initial" id="pfp-initial">?</div>
+            <span>add pfp <em>(optional)</em></span>
+          </div>
+        </label>
+        <div class="claim-fields">
+          <div class="field-stacked">
+            <label for="handle">handle</label>
+            <input id="handle" type="text" maxlength="20" placeholder="state-mogger" inputmode="text" autocomplete="off" spellcheck="false" />
+            <div id="handle-status" class="field-status">type to check availability</div>
+          </div>
+          <label class="age-check">
+            <input id="age-ok" type="checkbox" />
+            <span>I am 18+ and consent to live webcam matchmaking with strangers.</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="claim-actions">
+        <button id="btn-enter" class="btn primary big" disabled>enter the arena →</button>
+        <button id="btn-friend" class="btn ghost big" disabled>play a friend ↗</button>
+      </div>
+    </div>
+
+    <!-- Stage 2: friend-room overlay -->
+    <div id="friend-overlay" class="friend-overlay" hidden>
+      <div class="friend-card">
+        <button class="friend-close" id="friend-close" aria-label="close">×</button>
+        <h3>play a friend</h3>
+        <p class="muted">private 1v1 — does not affect rank. share a link, your friend joins, you mog.</p>
+        <div class="friend-tabs">
+          <button class="tab active" data-friend-tab="host">create room</button>
+          <button class="tab" data-friend-tab="join">join with code</button>
+        </div>
+        <div id="friend-host" class="friend-panel">
+          <p class="muted">we'll generate a code on the next screen once your camera is set up. share it with your friend, they paste it in the join tab.</p>
+          <button id="btn-host" class="btn primary big">set up host →</button>
+        </div>
+        <div id="friend-join" class="friend-panel" hidden>
+          <input id="join-code" type="text" placeholder="ABC123" maxlength="6" inputmode="latin" autocomplete="off" />
+          <button id="btn-join" class="btn primary big">join room</button>
+          <div id="join-error" class="field-status err" hidden></div>
+        </div>
+      </div>
+    </div>
 
     <div class="hero-stats">
       <div><strong id="your-elo">1000</strong><span>your elo</span></div>
-      <div><strong id="your-psl">—</strong><span>last psl</span></div>
+      <div><strong id="your-tier">—</strong><span>rank</span></div>
       <div><strong id="your-mogs">0</strong><span>mogs landed</span></div>
     </div>
   </section>
@@ -65,25 +110,25 @@
       <p>Your face is graded in your browser. Landmarks never leave the device. We compute symmetry, harmonic ratios, jawline definition, canthal tilt, and skin uniformity — then collapse it into a PSL score.</p>
     </article>
     <article>
-      <h3>15-second face-off</h3>
-      <p>Camera goes hot for fifteen seconds. Both faces are scored live; the higher composite wins the round and the ELO swing.</p>
+      <h3>ranked matchmaking</h3>
+      <p>Few people online? You can fight anyone. Past 50 active players, the queue pairs you with someone in your ELO band so your climb means something. Tier badges from <em>bronze</em> to <em>state-mogger</em>.</p>
     </article>
     <article>
-      <h3>ranked, not random</h3>
-      <p>Queue matches by ELO band first, so you fight at your weight. Climb from <em>chad-adjacent</em> to <em>state-mogger</em> and pin a spot on the global board.</p>
+      <h3>fight your friends</h3>
+      <p>Create a room, share the code, mog them in private. Friend duels don't touch your ELO — they're for the clip.</p>
     </article>
     <article>
-      <h3>v2 upgrades</h3>
-      <p>Five-axis breakdown, live landmark overlay, fairer matchmaking, mobile-native layout, instant rematch, no signup, no download.</p>
+      <h3>safety on by default</h3>
+      <p>NSFW detector runs locally on both feeds — if anything inappropriate hits a camera, the round ends and a report files itself.</p>
     </article>
   </section>
 
   <section class="faq" id="faq">
     <h2>frequently asked</h2>
-    <details><summary>does anything leave my device?</summary><p>No video frames or landmarks are uploaded. Only the final composite PSL number is sent to score the round.</p></details>
+    <details><summary>does anything leave my device?</summary><p>No video frames or landmarks are uploaded. Only the final composite PSL number is sent to score the round. Your PFP, if you upload one, is stored on the server so the leaderboard can show it.</p></details>
     <details><summary>what is psl?</summary><p>A community shorthand for a holistic facial-aesthetic score (0–10). V2 derives it from five measurable axes; treat it as a game metric, not a verdict on you.</p></details>
-    <details><summary>can i skip?</summary><p>Yes — skip, mute, and report are one tap each. Skips early in the round are free; conceding mid-round costs ELO.</p></details>
-    <details><summary>is this just omoggle.com?</summary><p>Inspired by it. V2 has a five-axis breakdown, ELO-band queue, live overlay, mobile layout, and runs on our own infra so we can keep it sharp.</p></details>
+    <details><summary>can i change my handle?</summary><p>Yes — go through the claim card again. As long as the new name is free and clean, it's yours.</p></details>
+    <details><summary>do friend matches count?</summary><p>No. Private rooms are unranked — for the clip, not the climb.</p></details>
   </section>
 </main>
 
@@ -92,6 +137,7 @@
   <span><a href="/terms.html">terms</a> · <a href="/privacy.html">privacy</a></span>
 </footer>
 
+<script src="/socket.io/socket.io.js" defer></script>
 <script src="/js/bg.js" defer></script>
 <script src="/js/home.js" defer></script>
 </body>

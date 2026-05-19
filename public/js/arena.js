@@ -5,6 +5,18 @@
   const STATS_KEY = 'omoggle_v2_last_stats';
 
   if (localStorage.getItem(AGE_KEY) !== '1') { location.href = '/'; return; }
+  if (!localStorage.getItem(ID_KEY) || !localStorage.getItem(HANDLE_KEY)) {
+    // No claimed handle — bounce back to the home form (preserve room param).
+    location.href = '/' + (location.search || '');
+    return;
+  }
+
+  // Route options driven by query params:
+  //   ?room=ABC123   → join (or host on landing) a private 1v1
+  //   ?role=host     → we created the room, server side already started match
+  const urlParams = new URLSearchParams(location.search);
+  const roomCode  = (urlParams.get('room') || '').trim().toUpperCase().slice(0, 6) || null;
+  const hostMode  = urlParams.get('host') === '1';
 
   const $ = (id) => document.getElementById(id);
   const stages = {
@@ -29,6 +41,27 @@
   let oppSafety = null;
   let safetyBlocked = false;     // calibration: queue locked until camera is clean
   let merger = null;             // live half-and-half face merger
+  let currentMatchMode = 'ranked';
+
+  // Send the user into a private room. Used both for ?room= URLs and from the
+  // result screen's "play again" button when they came in as a guest.
+  function joinPrivateRoom(code) {
+    if (!socket) return;
+    setStage('queue');
+    const qt = $('queue-title'); if (qt) qt.textContent = 'joining private room';
+    const qs = $('queue-sub');   if (qs) qs.textContent = `code: ${code}`;
+    socket.emit('room:join', { code }, (resp) => {
+      if (resp?.error) {
+        const err = resp.error === 'no_room' ? 'room not found or expired'
+                  : resp.error === 'host_gone' ? 'host left before you joined'
+                  : resp.error === 'cant_join_self' ? 'open this link in a different tab'
+                  : 'could not join room';
+        flash(err);
+        setStage('calibrate');
+      }
+      // success: the server starts the match and onMatchStart will fire.
+    });
+  }
 
   function setBar(id, pct) {
     const fill = document.getElementById('bar-' + id);
@@ -61,18 +94,37 @@
     // Connect socket immediately so stats are live during calibration
     socket = io({ transports: ['websocket', 'polling'] });
     socket.emit('player:hello', {
-      playerId: localStorage.getItem(ID_KEY) || null,
-      handle: localStorage.getItem(HANDLE_KEY) || null,
+      playerId: localStorage.getItem(ID_KEY),
+      handle: localStorage.getItem(HANDLE_KEY),
     }, (resp) => {
+      if (resp?.error) {
+        // server has no record of this id — make the user re-claim
+        localStorage.removeItem(ID_KEY);
+        location.href = '/';
+        return;
+      }
       player = resp;
       localStorage.setItem(ID_KEY, resp.playerId);
       localStorage.setItem(HANDLE_KEY, resp.handle);
       $('hud-handle').textContent = resp.handle;
       $('hud-elo').textContent = resp.elo;
+      $('hud-tier').textContent = resp.tier || 'unranked';
       $('hud-mogs').textContent = resp.mogs || 0;
       $('me-elo').textContent = resp.elo;
       $('me-handle').textContent = resp.handle;
       $('q-elo').textContent = resp.elo;
+      $('q-tier').textContent = resp.tier || '—';
+      // pfp
+      if (resp.hasPfp) {
+        const img = $('hud-pfp-img');
+        if (img) img.src = `/pfp/${resp.playerId}?t=${Date.now()}`;
+      } else {
+        const img = $('hud-pfp-img');
+        if (img) img.style.display = 'none';
+      }
+      // If we landed here with ?room=XXX (guest) or ?host=1 (creator), route
+      // through the private-room flow. Otherwise we're a normal ranked queue.
+      if (roomCode) joinPrivateRoom(roomCode);
     });
 
     socket.on('queue:joined', ({ position }) => {
@@ -198,20 +250,57 @@
     });
     calSafety.start();
 
-    $('btn-queue').addEventListener('click', () => {
+    // Adapt the queue button to reflect the user's intent.
+    const btnQueue = $('btn-queue');
+    if (hostMode)        btnQueue.textContent = 'create private room →';
+    else if (roomCode)   btnQueue.textContent = 'join room ' + roomCode + ' →';
+    else                 btnQueue.textContent = 'queue ranked 1v1 →';
+
+    btnQueue.addEventListener('click', () => {
       if (safetyBlocked) return;
-      if (!safeReady) {
-        // Model still loading — let them queue anyway; battle stage has its
-        // own scanner that will catch anything once the model is up.
-      }
       calSafety?.stop();
+      if (hostMode) { createPrivateRoom(); return; }
+      if (roomCode) { joinPrivateRoom(roomCode); return; }
       setStage('queue');
       socket.emit('queue:join');
     });
   }
 
+  function createPrivateRoom() {
+    setStage('queue');
+    const qt = $('queue-title'); if (qt) qt.textContent = 'waiting for your friend';
+    const qs = $('queue-sub');   if (qs) qs.textContent = 'private match — share the code below';
+    socket.emit('room:create', null, (resp) => {
+      if (resp?.error) {
+        flash('could not create room');
+        setStage('calibrate');
+        return;
+      }
+      const code = resp.code;
+      const card = $('host-card');
+      $('room-code').textContent = code;
+      if (card) card.hidden = false;
+      // hook the copy buttons (once)
+      $('btn-copy-link')?.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(`${location.origin}/arena.html?room=${encodeURIComponent(code)}`);
+          showCopyToast();
+        } catch {}
+      }, { once: true });
+      $('btn-copy-code')?.addEventListener('click', async () => {
+        try { await navigator.clipboard.writeText(code); showCopyToast(); } catch {}
+      }, { once: true });
+    });
+  }
+  function showCopyToast() {
+    const t = $('copy-toast'); if (!t) return;
+    t.hidden = false; setTimeout(() => { t.hidden = true; }, 1500);
+  }
+
   $('btn-cancel-queue').addEventListener('click', () => {
     socket?.emit('queue:leave');
+    socket?.emit('room:cancel');
+    const card = $('host-card'); if (card) card.hidden = true;
     setStage('calibrate');
   });
 
@@ -223,9 +312,10 @@
   let oppFinalPsl = null;
   let battleActive = false;
 
-  async function onMatchStart({ matchId, role, opponent }) {
+  async function onMatchStart({ matchId, role, mode, opponent }) {
     battleRound++;
     battleActive = true;
+    currentMatchMode = mode || 'ranked';
     myFinalPsl = null;
     oppFinalPsl = null;
     $('opp-handle').textContent = opponent.handle || 'opponent';
@@ -235,6 +325,11 @@
     renderAxes($('me-axes'), null);
     renderAxes($('opp-axes'), null);
     $('opp-waiting').classList.remove('hide');
+    const banner = $('mode-banner');
+    if (banner) {
+      banner.textContent = currentMatchMode === 'private' ? 'private match — no rank change' : 'ranked match';
+      banner.className = 'mode-banner ' + currentMatchMode;
+    }
     setStage('battle');
 
     // restart self analyzer on me-video using same stream
@@ -363,7 +458,7 @@
     socket.emit('match:finish', { aPsl: myFinalPsl, bPsl: oppFinalPsl });
   }
 
-  function onMatchResult({ youWon, draw, opponentPsl, yourPsl, eloDelta, newElo, opponentEloDelta }) {
+  function onMatchResult({ youWon, draw, opponentPsl, yourPsl, eloDelta, newElo, opponentEloDelta, mode, ranked, tier }) {
     clearInterval(battleTimer);
 
     // Snapshot the live merge before tearing down the analyzers so the
@@ -384,6 +479,7 @@
     $('me-safety')?.classList.add('hide');
     $('opp-safety')?.classList.add('hide');
 
+    const isPrivate = (mode || currentMatchMode) === 'private';
     const banner = $('result-banner');
     if (draw) { banner.textContent = 'a draw.'; banner.className = 'result-banner draw'; }
     else if (youWon) { banner.textContent = 'you mogged.'; banner.className = 'result-banner'; }
@@ -391,14 +487,20 @@
 
     $('r-mypsl').textContent = yourPsl != null ? Number(yourPsl).toFixed(2) : (myFinalPsl != null ? myFinalPsl.toFixed(2) : '—');
     $('r-opsl').textContent = opponentPsl != null ? Number(opponentPsl).toFixed(2) : (oppFinalPsl != null ? oppFinalPsl.toFixed(2) : '—');
-    const d = eloDelta || 0;
-    $('r-delta').textContent = (d > 0 ? '+' : '') + d;
+    const d = isPrivate ? 0 : (eloDelta || 0);
+    const dEl = $('r-delta');
+    dEl.textContent = isPrivate ? 'unranked' : (d > 0 ? '+' : '') + d;
+    dEl.classList.toggle('unranked', isPrivate);
     $('r-elo').textContent = newElo;
-    $('hud-elo').textContent = newElo;
-    $('me-elo').textContent = newElo;
+    if (!isPrivate) {
+      $('hud-elo').textContent = newElo;
+      $('me-elo').textContent = newElo;
+      if (tier) $('hud-tier').textContent = tier;
+    }
 
-    if (player) {
+    if (player && !isPrivate) {
       player.elo = newElo;
+      if (tier) player.tier = tier;
       if (youWon) {
         player.mogs = (player.mogs || 0) + 1;
         $('hud-mogs').textContent = player.mogs;
@@ -406,7 +508,11 @@
     }
     try {
       const cur = JSON.parse(localStorage.getItem(STATS_KEY) || '{}');
-      localStorage.setItem(STATS_KEY, JSON.stringify({ ...cur, elo: newElo, mogs: player?.mogs ?? cur.mogs ?? 0 }));
+      if (!isPrivate) {
+        localStorage.setItem(STATS_KEY, JSON.stringify({
+          ...cur, elo: newElo, tier: tier || cur.tier, mogs: player?.mogs ?? cur.mogs ?? 0,
+        }));
+      }
     } catch {}
 
     setStage('result');
